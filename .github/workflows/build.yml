@@ -75,8 +75,15 @@ jobs:
             p = 1;
             next;
           }
-          /\[task resume\];/ { p = 0; next }
-          /NSURLSessionDataTask\* task =/ { next }
+          /\[task resume\];/ { 
+            if(p == 1) {
+              p = 0;
+              next;
+            }
+          }
+          /NSURLSessionDataTask\* task =/ { 
+            if(p == 1) next;
+          }
           !p { print }
         ' Shared/TSUtil.m > Shared/TSUtil.m.tmp && mv Shared/TSUtil.m.tmp Shared/TSUtil.m
         
