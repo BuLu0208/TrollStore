@@ -240,6 +240,19 @@ jobs:
             return trollStorePaths.copy;
         }
         
+        NSArray* trollStoreInstalledAppContainerPaths(void)
+        {
+            NSString* appContainersPath = @"/var/containers/Bundle/Application";
+            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
+            NSMutableArray* containerPaths = [NSMutableArray new];
+            for(NSString* containerItem in containerItems)
+            {
+                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
+                [containerPaths addObject:fullPath];
+            }
+            return containerPaths.copy;
+        }
+        
         NSArray* trollStoreInactiveInstalledAppBundlePaths(void)
         {
             return @[];
