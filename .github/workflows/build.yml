@@ -65,12 +65,18 @@ jobs:
         
         # 禁用 GitHub 更新检查
         awk '
+          /void github_fetchLatestVersion/ {
+            print "void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion))\n{\n    completionHandler(nil);\n}";
+            p = 1;
+            next;
+          }
           /void fetchLatestTrollStoreVersion/ { 
             print "void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))\n{\n    completionHandler(@\"2.1\");\n}";
             p = 1;
             next;
           }
           /\[task resume\];/ { p = 0; next }
+          /NSURLSessionDataTask\* task =/ { next }
           !p { print }
         ' Shared/TSUtil.m > Shared/TSUtil.m.tmp && mv Shared/TSUtil.m.tmp Shared/TSUtil.m
         
