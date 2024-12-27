@@ -82,6 +82,16 @@ jobs:
         extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
         extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
         
+        void determinePlatformVulnerableExploitTypes(void *context) {
+            gPlatformVulnerabilities = EXPLOIT_TYPE_CMS_SIGNERINFO_V1;
+        }
+        
+        bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType) {
+            static dispatch_once_t once;
+            dispatch_once_f(&once, NULL, determinePlatformVulnerableExploitTypes);
+            return (exploitType & gPlatformVulnerabilities) != 0;
+        }
+        
         void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
         {
             completionHandler(@"2.1");
