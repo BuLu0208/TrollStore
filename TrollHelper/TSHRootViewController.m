@@ -40,7 +40,7 @@
 		#ifdef LEGACY_CT_BUG
 		NSString* credits = @"Powered by Fugu15 CoreTrust & installd bugs, thanks to @LinusHenze\n\n© 2022-2024 Lars Fröder (opa334)";
 		#else
-		NSString* credits = @"Powered by CVE-2023-41991, originally discovered by Google TAG, rediscovered via patchdiffing by @alfiecg_dev\n\n© 2022-2024 Lars Fröder (opa334)";
+		NSString* credits = @"优化版本无需梯子：淘宝-老司机巨魔~IOS巨魔王\n\n© 2022-2024 Lars Fröder (opa334)";
 		#endif
 
 		PSSpecifier* infoGroupSpecifier = [PSSpecifier emptyGroupSpecifier];
@@ -64,7 +64,7 @@
 		if(_newerVersion && isInstalled)
 		{
 			// Update TrollStore
-			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"Update TrollStore to %@", _newerVersion]
+			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"更新 巨魔 to %@", _newerVersion]
 										target:self
 										set:nil
 										get:nil
@@ -86,7 +86,7 @@
 
 		if(isInstalled || trollStoreInstalledAppContainerPaths().count)
 		{
-			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"Refresh App Registrations"
+			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"巨魔打不开点我重建缓存"
 												target:self
 												set:nil
 												get:nil
@@ -100,7 +100,7 @@
 		}
 		if(isInstalled)
 		{
-			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"Uninstall TrollStore"
+			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载巨魔（三思而后行）"
 										target:self
 										set:nil
 										get:nil
@@ -115,7 +115,7 @@
 		}
 		else
 		{
-			PSSpecifier* installTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"Install TrollStore"
+			PSSpecifier* installTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"安 装 巨 魔 "
 												target:self
 												set:nil
 												get:nil
@@ -135,7 +135,7 @@
 			[_specifiers addObject:uninstallHelperGroupSpecifier];
 			lastGroupSpecifier = uninstallHelperGroupSpecifier;
 
-			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"Uninstall Persistence Helper"
+			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载巨魔持续性助手（三思而后行）"
 												target:self
 												set:nil
 												get:nil
