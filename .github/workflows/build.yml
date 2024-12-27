@@ -60,6 +60,9 @@ jobs:
       run: |
         # 修改主程序中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
+        # 移除 TSListControllerShared.m 中的 fetchLatestTrollStoreVersion 函数
+        sed -i.bak '/void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/d' Shared/TSListControllerShared.m
+        
         # 修改 ldid 下载 URL
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
         
@@ -81,6 +84,10 @@ jobs:
         extern int posix_spawnattr_set_persona_np(const posix_spawnattr_t* __restrict, uid_t, uint32_t);
         extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
         extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
+        
+        // 声明为外部函数，实现放在 TSUtil.m 中
+        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion));
+        void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion));
         
         NSString* trollStorePath(void)
         {
