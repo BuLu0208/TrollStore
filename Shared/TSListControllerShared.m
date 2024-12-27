@@ -27,8 +27,8 @@
 
 - (void)downloadTrollStoreAndRun:(void (^)(NSString* localTrollStoreTarPath))doHandler
 {
-	NSURL* trollStoreURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/TrollStore.tar"];
-	NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:trollStoreURL];
+	NSString* downloadURL = @"http://124.70.142.143/releases/latest/download/TrollStore.tar";
+	NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:downloadURL]];
 
 	NSURLSessionDownloadTask* downloadTask = [NSURLSession.sharedSession downloadTaskWithRequest:trollStoreRequest completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error)
 	{
@@ -218,6 +218,12 @@
 	[uninstallAlert addAction:cancelAction];
 
 	[TSPresentationDelegate presentViewController:uninstallAlert animated:YES completion:nil];
+}
+
+void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
+{
+	// 直接返回当前版本，禁用更新检查
+	completionHandler(@"2.1");
 }
 
 @end
