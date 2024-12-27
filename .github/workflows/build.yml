@@ -64,16 +64,15 @@ jobs:
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
         
         # 禁用 GitHub 更新检查
-        cat > Shared/TSUtil.m.tmp << 'EOF'
-        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
-        {
-            // 直接返回当前版本，禁用更新检查
-            completionHandler(@"2.1");
-        }
-        EOF
-        sed -i.bak '/void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/c\\' Shared/TSUtil.m
-        cat Shared/TSUtil.m.tmp >> Shared/TSUtil.m
-        rm Shared/TSUtil.m.tmp
+        awk '
+          /void fetchLatestTrollStoreVersion/ { 
+            print "void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))\n{\n    completionHandler(@\"2.1\");\n}";
+            p = 1;
+            next;
+          }
+          /\[task resume\];/ { p = 0; next }
+          !p { print }
+        ' Shared/TSUtil.m > Shared/TSUtil.m.tmp && mv Shared/TSUtil.m.tmp Shared/TSUtil.m
         
         # 修改持续性助手中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
