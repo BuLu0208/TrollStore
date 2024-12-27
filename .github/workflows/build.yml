@@ -82,6 +82,39 @@ jobs:
         extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
         extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
         
+        NSString* trollStoreAppPath(void)
+        {
+            return [trollStorePath() stringByAppendingPathComponent:@"TrollStore.app"];
+        }
+        
+        NSArray* trollStoreInstalledAppBundlePaths(void)
+        {
+            NSString* appContainersPath = @"/var/containers/Bundle/Application";
+            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
+            NSMutableArray* trollStorePaths = [NSMutableArray new];
+            for(NSString* containerItem in containerItems)
+            {
+                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
+                [trollStorePaths addObject:fullPath];
+            }
+            return trollStorePaths.copy;
+        }
+        
+        NSArray* trollStoreInactiveInstalledAppBundlePaths(void)
+        {
+            return @[];
+        }
+        
+        LSApplicationProxy* findPersistenceHelperApp(PERSISTENCE_HELPER_TYPE allowedTypes)
+        {
+            return nil;
+        }
+        
+        void fetchLatestLdidVersion(void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(@"2.1.5-2");
+        }
+        
         void determinePlatformVulnerableExploitTypes(void *context) {
             gPlatformVulnerabilities = EXPLOIT_TYPE_CMS_SIGNERINFO_V1;
         }
