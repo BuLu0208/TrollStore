@@ -220,10 +220,4 @@
 	[TSPresentationDelegate presentViewController:uninstallAlert animated:YES completion:nil];
 }
 
-void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
-{
-	// 直接返回当前版本，禁用更新检查
-	completionHandler(@"2.1");
-}
-
 @end
