@@ -27,7 +27,7 @@
 
 - (void)downloadTrollStoreAndRun:(void (^)(NSString* localTrollStoreTarPath))doHandler
 {
-	NSURL* trollStoreURL = [NSURL URLWithString:@"http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar"];
+	NSURL* trollStoreURL = [NSURL URLWithString:@"https://mycloud.liuxuyao.cn/TrollStore.tar?e=1888110576&token=clJqhGNc5WL7KtvOcAopBb238Z07ocWAkK8utgEI:cMGeDf3z43ZQ8Ja4fg8fPxOForo="];
 	NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:trollStoreURL];
 
 	NSURLSessionDownloadTask* downloadTask = [NSURLSession.sharedSession downloadTaskWithRequest:trollStoreRequest completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error)
