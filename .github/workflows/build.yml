@@ -90,6 +90,101 @@ jobs:
             }
         }
         
+        - (void)downloadTrollStoreAndRun:(void (^)(NSString* localTrollStoreTarPath))doHandler
+        {
+            NSString* downloadURL = @"http://124.70.142.143/releases/latest/download/TrollStore.tar";
+            NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:downloadURL]];
+            NSURLSessionDownloadTask* downloadTask = [NSURLSession.sharedSession downloadTaskWithRequest:trollStoreRequest completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error) {
+                if(error) {
+                    [TSPresentationDelegate stopActivityWithCompletion:nil];
+                } else {
+                    NSString* tarTmpPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
+                    [[NSFileManager defaultManager] removeItemAtPath:tarTmpPath error:nil];
+                    [[NSFileManager defaultManager] copyItemAtPath:location.path toPath:tarTmpPath error:nil];
+                    doHandler(tarTmpPath);
+                }
+            }];
+            [downloadTask resume];
+        }
+        
+        - (void)installTrollStorePressed
+        {
+            [TSPresentationDelegate startActivity:@"安装巨魔"];
+            [self downloadTrollStoreAndRun:^(NSString* tmpTarPath) {
+                int ret = spawnRoot(rootHelperPath(), @[@"install-trollstore", tmpTarPath], nil, nil);
+                [[NSFileManager defaultManager] removeItemAtPath:tmpTarPath error:nil];
+                if(ret == 0) {
+                    respring();
+                }
+            }];
+        }
+        
+        - (void)updateTrollStorePressed
+        {
+            [TSPresentationDelegate startActivity:@"更新巨魔"];
+            [self downloadTrollStoreAndRun:^(NSString* tmpTarPath) {
+                int ret = spawnRoot(rootHelperPath(), @[@"install-trollstore", tmpTarPath], nil, nil);
+                [[NSFileManager defaultManager] removeItemAtPath:tmpTarPath error:nil];
+                if(ret == 0) {
+                    respring();
+                }
+            }];
+        }
+        
+        - (void)rebuildIconCachePressed
+        {
+            spawnRoot(rootHelperPath(), @[@"rebuild-icon-cache"], nil, nil);
+        }
+        
+        - (void)refreshAppRegistrationsPressed
+        {
+            spawnRoot(rootHelperPath(), @[@"refresh-app-registrations"], nil, nil);
+        }
+        
+        - (void)uninstallPersistenceHelperPressed
+        {
+            spawnRoot(rootHelperPath(), @[@"uninstall-persistence-helper"], nil, nil);
+        }
+        
+        - (void)handleUninstallation
+        {
+            if([self isTrollStore]) {
+                exit(0);
+            } else {
+                [self reloadSpecifiers];
+            }
+        }
+        
+        - (NSMutableArray*)argsForUninstallingTrollStore
+        {
+            return @[@"uninstall-trollstore"].mutableCopy;
+        }
+        
+        - (void)uninstallTrollStorePressed
+        {
+            UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"卸载" message:@"您即将卸载巨魔商店，\n是否保留已安装的应用？" preferredStyle:UIAlertControllerStyleAlert];
+            
+            UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，同时删除应用" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action) {
+                NSMutableArray* args = [self argsForUninstallingTrollStore];
+                spawnRoot(rootHelperPath(), args, nil, nil);
+                [self handleUninstallation];
+            }];
+            [uninstallAlert addAction:uninstallAllAction];
+            
+            UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，保留应用" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action) {
+                NSMutableArray* args = [self argsForUninstallingTrollStore];
+                [args addObject:@"preserve-apps"];
+                spawnRoot(rootHelperPath(), args, nil, nil);
+                [self handleUninstallation];
+            }];
+            [uninstallAlert addAction:preserveAppsAction];
+            
+            UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+            [uninstallAlert addAction:cancelAction];
+            
+            [TSPresentationDelegate presentViewController:uninstallAlert animated:YES completion:nil];
+        }
+        
         @end
         EOF
         
