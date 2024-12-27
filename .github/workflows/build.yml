@@ -61,10 +61,40 @@ jobs:
         # 修改主程序中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
         # 移除 TSListControllerShared.m 中的 fetchLatestTrollStoreVersion 函数，保留 @end
-        awk '
-          /void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/ { next }
-          { print }
-        ' Shared/TSListControllerShared.m > Shared/TSListControllerShared.m.tmp && mv Shared/TSListControllerShared.m.tmp Shared/TSListControllerShared.m
+        # 创建临时文件来保存修改后的内容
+        cat > Shared/TSListControllerShared.m.new << 'EOF'
+        #import "TSListControllerShared.h"
+        #import "TSUtil.h"
+        #import "TSPresentationDelegate.h"
+        
+        @implementation TSListControllerShared
+        
+        - (BOOL)isTrollStore
+        {
+            return YES;
+        }
+        
+        - (NSString*)getTrollStoreVersion
+        {
+            if([self isTrollStore])
+            {
+                return [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+            }
+            else
+            {
+                NSString* trollStorePath = trollStoreAppPath();
+                if(!trollStorePath) return nil;
+        
+                NSBundle* trollStoreBundle = [NSBundle bundleWithPath:trollStorePath];
+                return [trollStoreBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+            }
+        }
+        
+        @end
+        EOF
+        
+        # 替换原文件
+        mv Shared/TSListControllerShared.m.new Shared/TSListControllerShared.m
         
         # 修改 ldid 下载 URL
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
