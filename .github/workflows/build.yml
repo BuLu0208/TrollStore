@@ -1,0 +1,96 @@
+name: Build TrollStore
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        brew install ldid
+        brew install make
+        brew install openssl@3
+        
+    - name: Setup Theos
+      run: |
+        git clone --recursive https://github.com/theos/theos.git theos
+        curl -LO https://github.com/theos/sdks/archive/master.zip
+        unzip master.zip
+        mkdir -p theos/sdks
+        mv sdks-master/* theos/sdks/
+        rm -rf sdks-master master.zip
+        
+    - name: Setup ChOma
+      run: |
+        git clone https://github.com/opa334/ChOma.git
+        cd ChOma/src
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/struct fat_header/struct FAT_header/g' FAT.h
+        sed -i.bak 's/typedef struct fat_header FAT_header/typedef struct FAT_header FAT_header/g' FAT.h
+        sed -i.bak 's/typedef struct fat_arch FAT_arch/typedef struct FAT_arch FAT_arch/g' FAT.h
+        mv Fat.h FAT.h
+        
+    - name: Build fastPathSign
+      run: |
+        cd Exploits/fastPathSign
+        cp ../../ChOma/src/*.h src/
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
+        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        make
+        chmod +x fastPathSign
+        
+    - name: Update source URLs and fix dependencies
+      run: |
+        # 修改 TrollStore 中的 URL
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
+        sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
+        
+        # 修改 TrollHelper 中的 URL
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
+        
+        # 修改 RootHelper 中的 URL
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" RootHelper/TSRootViewController.m
+
+    - name: Build project
+      env:
+        THEOS: ${{ github.workspace }}/theos
+      run: |
+        export PATH=$THEOS/bin:$PATH
+        export THEOS_DEVICE_IP=127.0.0.1
+        export THEOS_PLATFORM=ios
+        
+        # 编译 TrollStore
+        cd TrollStore
+        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
+        make package FINALPACKAGE=1
+        cd ..
+        
+        # 编译 TrollHelper
+        cd TrollHelper
+        make package FINALPACKAGE=1
+        cd ..
+        
+        # 编译 RootHelper
+        cd RootHelper
+        make package FINALPACKAGE=1
+        cd ..
+        
+    - name: Create TrollStore.tar
+      run: |
+        # 创建临时目录来收集所有 deb 文件
+        mkdir -p packages
+        cp TrollStore/packages/*.deb packages/
+        cp TrollHelper/packages/*.deb packages/
+        cp RootHelper/packages/*.deb packages/
+        cd packages
+        tar -cvf TrollStore.tar *.deb 
