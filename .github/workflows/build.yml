@@ -72,6 +72,16 @@ jobs:
         #import <mach-o/dyld.h>
         #import <libroot.h>
         
+        static EXPLOIT_TYPE gPlatformVulnerabilities;
+        
+        void* _CTServerConnectionCreate(CFAllocatorRef, void *, void *);
+        int64_t _CTServerConnectionSetCellularUsagePolicy(CFTypeRef* ct, NSString* identifier, NSDictionary* policies);
+        
+        #define POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE 1
+        extern int posix_spawnattr_set_persona_np(const posix_spawnattr_t* __restrict, uid_t, uint32_t);
+        extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
+        extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
+        
         void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
         {
             completionHandler(@"2.1");
@@ -81,12 +91,14 @@ jobs:
         {
             completionHandler(nil);
         }
-        
-        // ... 其他函数保持不变 ...
         EOF
         
-        # 将原文件中的其他函数复制到新文件
-        sed -n '/void chineseWifiFixup/,$p' Shared/TSUtil.m >> Shared/TSUtil.m.new
+        # 将原文件中的其他函数复制到新文件，但跳过原有的 fetchLatestTrollStoreVersion 和 github_fetchLatestVersion 函数
+        awk '
+          /void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/ { next }
+          /void github_fetchLatestVersion/,/\[dataTask resume\];/ { next }
+          /void chineseWifiFixup/,/^@end/ { print }
+        ' Shared/TSUtil.m >> Shared/TSUtil.m.new
         
         # 替换原文件
         mv Shared/TSUtil.m.new Shared/TSUtil.m
