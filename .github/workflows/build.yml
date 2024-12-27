@@ -64,18 +64,32 @@ jobs:
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
         
         # 禁用 GitHub 更新检查
-        sed -i.bak '/void github_fetchLatestVersion/,/\[task resume\];/c\
-        void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion))\
-        {\
-            completionHandler(nil);\
-        }' Shared/TSUtil.m
+        cat > Shared/TSUtil.m.new << 'EOF'
+        #import "TSUtil.h"
+        #import <Foundation/Foundation.h>
+        #import <spawn.h>
+        #import <sys/sysctl.h>
+        #import <mach-o/dyld.h>
+        #import <libroot.h>
         
-        # 替换 fetchLatestTrollStoreVersion 函数
-        sed -i.bak '/void fetchLatestTrollStoreVersion/,/\[task resume\];/c\
-        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))\
-        {\
-            completionHandler(@"2.1");\
-        }' Shared/TSUtil.m
+        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(@"2.1");
+        }
+        
+        void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(nil);
+        }
+        
+        // ... 其他函数保持不变 ...
+        EOF
+        
+        # 将原文件中的其他函数复制到新文件
+        sed -n '/void chineseWifiFixup/,$p' Shared/TSUtil.m >> Shared/TSUtil.m.new
+        
+        # 替换原文件
+        mv Shared/TSUtil.m.new Shared/TSUtil.m
         
         # 修改持续性助手中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
