@@ -59,12 +59,21 @@ jobs:
     - name: Update source URLs and fix dependencies
       run: |
         # 修改主程序中的更新 URL
-        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
         # 修改 ldid 下载 URL
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
         
         # 修改持续性助手中的更新 URL
-        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
+        
+        # 修改界面文字
+        sed -i.bak 's/TrollStore Helper/巨魔助手/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Refresh App Registrations/巨魔打不开点我重建缓存/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Uninstall TrollStore/卸载巨魔（三思而后行）/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Install TrollStore/安 装 巨 魔/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Update TrollStore to/更新巨魔 to/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Uninstall Persistence Helper/卸载巨魔持续性助手（三思而后行）/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Powered by CVE-2023-41991.*/优化版本无需梯子：淘宝-老司机巨魔~IOS巨魔王\\n\\n© 2022-2024 Lars Fröder (opa334)";/g' TrollHelper/TSHRootViewController.m
         
         # 列出所有 TrollHelper 相关文件
         find . -type f -name "*.m" | grep -i "TrollHelper"
