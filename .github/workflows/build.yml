@@ -70,9 +70,11 @@ jobs:
             // 直接返回当前版本，禁用更新检查
             completionHandler(@"2.1");
         }
+
+        @end
         EOF
-        sed -i.bak '/void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/{ /void fetchLatestTrollStoreVersion/r Shared/TSListControllerShared.m.tmp
-            /void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/d
+        sed -i.bak '/void fetchLatestTrollStoreVersion/,/@end/{ /void fetchLatestTrollStoreVersion/r Shared/TSListControllerShared.m.tmp
+            /void fetchLatestTrollStoreVersion/,/@end/d
         }' Shared/TSListControllerShared.m
         rm Shared/TSListControllerShared.m.tmp
         
