@@ -486,6 +486,61 @@ jobs:
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
+        
+        # 创建 include 目录并复制必要的头文件
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        cp ../ChOma/src/*.c include/
+        
+        # 创建 FAT.h
+        cat > include/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include <mach/machine.h>
+        #include "MachO.h"
+        
+        typedef struct FAT_header {
+            uint32_t magic;
+            uint32_t nfat_arch;
+        } FAT_header;
+        
+        typedef struct FAT_arch {
+            cpu_type_t cputype;
+            cpu_subtype_t cpusubtype;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t align;
+        } FAT_arch;
+        
+        typedef struct FAT {
+            FAT_header header;
+            FAT_arch* archs;
+            MachO** machos;
+            MemoryStream* stream;
+            size_t slicesCount;
+            MachO** slices;
+        } FAT;
+        
+        FAT* fat_init_from_path(const char* path);
+        FAT* fat_init_from_memory_stream(MemoryStream* stream);
+        MachO* fat_find_preferred_slice(FAT* fat);
+        MachO* fat_find_slice(FAT* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
+        void fat_free(FAT* fat);
+        EOF
+        
+        # 添加编译标志
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
+        
+        # 修改 Makefile 添加源文件
+        cat >> Makefile << 'EOF'
+        trollstorehelper_LIBRARIES = archive
+        trollstorehelper_FILES += ../ChOma/src/Fat.c
+        trollstorehelper_FRAMEWORKS = Security Foundation
+        EOF
+        
         make DEBUG=0
         cd ..
         
