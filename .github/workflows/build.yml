@@ -502,7 +502,11 @@ jobs:
     # 创建 Security 相关头文件
     - name: Create Security helper files
       run: |
+        # 确保在正确的目录
         cd RootHelper
+        
+        # 创建 include 目录
+        mkdir -p include
         
         # 创建 Security 相关头文件
         cat > include/TSSecurityHelper.h << 'EOF'
