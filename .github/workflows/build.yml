@@ -586,11 +586,11 @@ jobs:
         trollstorehelper_FILES += ../ChOma/src/MachO.c
         trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
         trollstorehelper_FILES += include/TSUtil.m
-        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony
+        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony MobileCoreServices
         
         # 添加额外的编译标志
-        ADDITIONAL_CFLAGS += -DTROLLSTORE_ROOT_HELPER=1
-        ADDITIONAL_OBJCFLAGS += -DTROLLSTORE_ROOT_HELPER=1
+        ADDITIONAL_CFLAGS += -DTROLLSTORE_ROOT_HELPER=1 -I./include
+        ADDITIONAL_OBJCFLAGS += -DTROLLSTORE_ROOT_HELPER=1 -I./include
         EOF
         
         # 创建缺失的函数声明
@@ -632,6 +632,22 @@ jobs:
                 CFRelease(connection);
             }
         }
+        EOF
+        
+        # 创建 LaunchServices 相关头文件
+        cat > include/LSApplicationProxy.h << 'EOF'
+        #import <Foundation/Foundation.h>
+
+        @interface LSApplicationProxy : NSObject
+        @property (nonatomic, readonly) NSString* bundleIdentifier;
+        @property (nonatomic, readonly) NSURL* bundleURL;
+        @property (nonatomic, readonly) NSArray* claimedURLSchemes;
+        @end
+
+        @interface LSEnumerator : NSEnumerator
+        @property (nonatomic, copy) NSPredicate* predicate;
+        + (instancetype)enumeratorForApplicationProxiesWithOptions:(NSUInteger)options;
+        @end
         EOF
         
         make DEBUG=0
