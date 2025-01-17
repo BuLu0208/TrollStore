@@ -502,8 +502,6 @@ jobs:
     # 创建 Security 相关头文件
     - name: Create Security helper files
       run: |
-        # 创建 include 目录
-        mkdir -p RootHelper/include
         cd RootHelper
         
         # 创建 Security 相关头文件
@@ -512,34 +510,48 @@ jobs:
         #import <Security/Security.h>
 
         // Security framework constants
-        extern const CFStringRef kSecCSSigningInformation;
-        extern const CFStringRef kSecCodeInfoCertificates;
-        extern const CFStringRef kSecPolicyAppleiPhoneApplicationSigning;
-        extern const CFStringRef kSecPolicyAppleiPhoneProfileApplicationSigning;
+        extern const CFStringRef _Nonnull kSecCSSigningInformation;
+        extern const CFStringRef _Nonnull kSecCodeInfoCertificates;
+        extern const CFStringRef _Nonnull kSecPolicyAppleiPhoneApplicationSigning;
+        extern const CFStringRef _Nonnull kSecPolicyAppleiPhoneProfileApplicationSigning;
 
         // Security framework types
+        typedef uint32_t SecCSFlags;
         typedef struct CF_BRIDGED_TYPE(id) __SecCode const* SecStaticCodeRef;
 
         // Security framework functions
-        CFDataRef SecCertificateCopyExtensionValue(SecCertificateRef certificate, CFStringRef oidString, bool* critical);
-        OSStatus SecCodeCopySigningInformation(SecStaticCodeRef code, SecCSFlags flags, CFDictionaryRef* __nonnull CF_RETURNS_RETAINED information);
-        OSStatus SecPolicySetOptionsValue(SecPolicyRef policy, CFStringRef key, CFTypeRef value);
+        CFDataRef _Nullable SecCertificateCopyExtensionValue(SecCertificateRef _Nonnull certificate, CFStringRef _Nonnull oidString, bool* _Nullable critical);
+        OSStatus SecCodeCopySigningInformation(SecStaticCodeRef _Nonnull code, SecCSFlags flags, CFDictionaryRef* _Nonnull CF_RETURNS_RETAINED information);
+        OSStatus SecPolicySetOptionsValue(SecPolicyRef _Nonnull policy, CFStringRef _Nonnull key, CFTypeRef _Nonnull value);
+
+        // Mobile Container Manager types
+        @interface MCMAppContainer : NSObject
+        @property (nonatomic, readonly) NSURL* url;
+        + (instancetype)containerWithIdentifier:(NSString*)identifier createIfNecessary:(BOOL)create existed:(BOOL*)existed error:(NSError**)error;
+        @end
+
+        // TrollStore constants
+        #define TS_ACTIVE_MARKER @".com.opa334.trollstore.active"
+        #define TS_INACTIVE_MARKER @".com.opa334.trollstore.inactive"
+        extern NSString* const LSInstallTypeKey;
 
         // Exploit types
-        typedef NS_OPTIONS(uint32_t, EXPLOIT_TYPE) {
+        typedef NS_ENUM(uint32_t, EXPLOIT_TYPE) {
             EXPLOIT_TYPE_NONE = 0,
             EXPLOIT_TYPE_CUSTOM_ROOT_CERTIFICATE_V1 = 1 << 0,
             EXPLOIT_TYPE_CMS_SIGNERINFO_V1 = 1 << 1,
         };
 
         // Helper functions
-        void printMultilineNSString(NSString* string);
+        void printMultilineNSString(NSString* _Nonnull string);
         bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType);
         EOF
 
         # 创建实现文件
         cat > include/TSSecurityHelper.m << 'EOF'
         #import "TSSecurityHelper.h"
+
+        NSString* const LSInstallTypeKey = @"LSInstallType";
 
         void printMultilineNSString(NSString* string) {
             NSArray* lines = [string componentsSeparatedByString:@"\n"];
@@ -562,82 +574,6 @@ jobs:
         cat >> Makefile << 'EOF'
         trollstorehelper_FILES += include/TSSecurityHelper.m
         EOF
-        
-        cd ..
-
-    # 创建工具函数头文件
-    - name: Create helper files
-      run: |
-        # 创建 include 目录
-        mkdir -p RootHelper/include
-        cd RootHelper
-        
-        # 创建工具函数头文件
-        cat > include/TSHelper.h << 'EOF'
-        #import <Foundation/Foundation.h>
-
-        NSString* trollStorePath(void);
-        NSString* trollStoreAppPath(void);
-        NSArray* trollStoreInstalledAppBundlePaths(void);
-        NSString* getNSStringFromFile(int fd);
-        
-        @interface LSApplicationProxy (TrollStore)
-        @property (nonatomic, readonly) BOOL installed;
-        @end
-        EOF
-        
-        # 创建工具函数实现
-        cat > include/TSHelper.m << 'EOF'
-        #import "TSHelper.h"
-        #import <unistd.h>
-
-        NSString* trollStorePath(void)
-        {
-            return @"/var/containers/Bundle/Application/TrollStore";
-        }
-
-        NSString* trollStoreAppPath(void)
-        {
-            return [trollStorePath() stringByAppendingPathComponent:@"TrollStore.app"];
-        }
-
-        NSArray* trollStoreInstalledAppBundlePaths(void)
-        {
-            NSString* appContainersPath = @"/var/containers/Bundle/Application";
-            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
-            NSMutableArray* trollStorePaths = [NSMutableArray new];
-            for(NSString* containerItem in containerItems)
-            {
-                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
-                [trollStorePaths addObject:fullPath];
-            }
-            return trollStorePaths.copy;
-        }
-
-        NSString* getNSStringFromFile(int fd)
-        {
-            NSMutableString* ms = [NSMutableString new];
-            ssize_t num_read;
-            char c;
-            while((num_read = read(fd, &c, sizeof(c))) > 0)
-            {
-                [ms appendString:[NSString stringWithFormat:@"%c",c]];
-            }
-            return ms.copy;
-        }
-
-        @implementation LSApplicationProxy (TrollStore)
-        - (BOOL)installed
-        {
-            return YES;
-        }
-        @end
-        EOF
-
-        # 修改 main.m 添加头文件引用
-        sed -i.bak '1i\
-        #import "TSHelper.h"\
-        ' main.m
         
         cd ..
 
@@ -857,8 +793,6 @@ jobs:
     # 创建 Security 相关头文件
     - name: Create Security helper files
       run: |
-        # 创建 include 目录
-        mkdir -p RootHelper/include
         cd RootHelper
         
         # 创建 Security 相关头文件
@@ -867,34 +801,48 @@ jobs:
         #import <Security/Security.h>
 
         // Security framework constants
-        extern const CFStringRef kSecCSSigningInformation;
-        extern const CFStringRef kSecCodeInfoCertificates;
-        extern const CFStringRef kSecPolicyAppleiPhoneApplicationSigning;
-        extern const CFStringRef kSecPolicyAppleiPhoneProfileApplicationSigning;
+        extern const CFStringRef _Nonnull kSecCSSigningInformation;
+        extern const CFStringRef _Nonnull kSecCodeInfoCertificates;
+        extern const CFStringRef _Nonnull kSecPolicyAppleiPhoneApplicationSigning;
+        extern const CFStringRef _Nonnull kSecPolicyAppleiPhoneProfileApplicationSigning;
 
         // Security framework types
+        typedef uint32_t SecCSFlags;
         typedef struct CF_BRIDGED_TYPE(id) __SecCode const* SecStaticCodeRef;
 
         // Security framework functions
-        CFDataRef SecCertificateCopyExtensionValue(SecCertificateRef certificate, CFStringRef oidString, bool* critical);
-        OSStatus SecCodeCopySigningInformation(SecStaticCodeRef code, SecCSFlags flags, CFDictionaryRef* __nonnull CF_RETURNS_RETAINED information);
-        OSStatus SecPolicySetOptionsValue(SecPolicyRef policy, CFStringRef key, CFTypeRef value);
+        CFDataRef _Nullable SecCertificateCopyExtensionValue(SecCertificateRef _Nonnull certificate, CFStringRef _Nonnull oidString, bool* _Nullable critical);
+        OSStatus SecCodeCopySigningInformation(SecStaticCodeRef _Nonnull code, SecCSFlags flags, CFDictionaryRef* _Nonnull CF_RETURNS_RETAINED information);
+        OSStatus SecPolicySetOptionsValue(SecPolicyRef _Nonnull policy, CFStringRef _Nonnull key, CFTypeRef _Nonnull value);
+
+        // Mobile Container Manager types
+        @interface MCMAppContainer : NSObject
+        @property (nonatomic, readonly) NSURL* url;
+        + (instancetype)containerWithIdentifier:(NSString*)identifier createIfNecessary:(BOOL)create existed:(BOOL*)existed error:(NSError**)error;
+        @end
+
+        // TrollStore constants
+        #define TS_ACTIVE_MARKER @".com.opa334.trollstore.active"
+        #define TS_INACTIVE_MARKER @".com.opa334.trollstore.inactive"
+        extern NSString* const LSInstallTypeKey;
 
         // Exploit types
-        typedef NS_OPTIONS(uint32_t, EXPLOIT_TYPE) {
+        typedef NS_ENUM(uint32_t, EXPLOIT_TYPE) {
             EXPLOIT_TYPE_NONE = 0,
             EXPLOIT_TYPE_CUSTOM_ROOT_CERTIFICATE_V1 = 1 << 0,
             EXPLOIT_TYPE_CMS_SIGNERINFO_V1 = 1 << 1,
         };
 
         // Helper functions
-        void printMultilineNSString(NSString* string);
+        void printMultilineNSString(NSString* _Nonnull string);
         bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType);
         EOF
 
         # 创建实现文件
         cat > include/TSSecurityHelper.m << 'EOF'
         #import "TSSecurityHelper.h"
+
+        NSString* const LSInstallTypeKey = @"LSInstallType";
 
         void printMultilineNSString(NSString* string) {
             NSArray* lines = [string componentsSeparatedByString:@"\n"];
