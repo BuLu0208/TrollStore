@@ -288,12 +288,15 @@ jobs:
             struct MachO** slices;
         };
         
-        # 使用已有的 Fat 类型
-        struct FAT* fat_init_from_path(const char* path);
-        struct FAT* fat_init_from_memory_stream(struct MemoryStream* stream);
-        struct MachO* fat_find_preferred_slice(struct FAT* fat);
-        struct MachO* fat_find_slice(struct FAT* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
-        void fat_free(struct FAT* fat);
+        // 使用与 Host.h 一致的类型定义
+        typedef struct FAT Fat;
+        typedef struct MachO MachO;
+        
+        Fat* fat_init_from_path(const char* path);
+        Fat* fat_init_from_memory_stream(struct MemoryStream* stream);
+        MachO* fat_find_preferred_slice(Fat* fat);
+        MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
+        void fat_free(Fat* fat);
         EOF
         
         # 修改 main.m 添加头文件引用和类型使用
@@ -304,7 +307,7 @@ jobs:
         ' main.m
         
         # 修改 main.m 中的类型使用
-        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' main.m
+        sed -i.bak 's/FAT \*fat/Fat \*fat/g' main.m
         sed -i.bak 's/struct MachO \*macho/MachO \*macho/g' main.m
         sed -i.bak 's/struct MachO \*machoForExtraction/MachO \*machoForExtraction/g' main.m
         sed -i.bak 's/struct MemoryStream \*stream/MemoryStream \*stream/g' main.m
