@@ -510,10 +510,12 @@ jobs:
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
         
-        # 复制 ChOma 的源文件和头文件
+        # 复制 ChOma 和共享代码的源文件和头文件
         mkdir -p include
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
+        cp ../Shared/*.h include/
+        cp ../Shared/*.m include/
         
         # 修复 FAT.h 引用和类型定义
         cat > include/FAT.h << 'EOF'
@@ -556,13 +558,16 @@ jobs:
         # 修复 Host.h 中的引用
         sed -i.bak 's/FAT \*/Fat \*/g' include/Host.h
         
-        # 添加 ChOma 的编译标志，移除 libarchive
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
+        # 添加所有必要的编译标志
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -I../Shared"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -I../Shared"
         export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
         
-        # 修改 Makefile 添加 libarchive
-        echo "trollstorehelper_LIBRARIES = archive" >> Makefile
+        # 修改 Makefile 添加 libarchive 和其他源文件
+        cat >> Makefile << 'EOF'
+        trollstorehelper_LIBRARIES = archive
+        trollstorehelper_FILES += $(wildcard ../Shared/*.m)
+        EOF
         
         make
         mkdir -p ../TrollStore/Resources
