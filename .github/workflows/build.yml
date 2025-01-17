@@ -266,6 +266,7 @@ jobs:
         #include <mach/machine.h>
         #include "MachO.h"
         #include "DyldSharedCache.h"
+        #include "MemoryStream.h"
         
         struct FAT_header {
             uint32_t magic;
@@ -282,7 +283,7 @@ jobs:
         
         // 使用 DyldSharedCache.h 中的 Fat 定义
         Fat* fat_init_from_path(const char* path);
-        Fat* fat_init_from_memory_stream(struct MemoryStream* stream);
+        Fat* fat_init_from_memory_stream(MemoryStream* stream);
         MachO* fat_find_preferred_slice(Fat* fat);
         MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
         void fat_free(Fat* fat);
