@@ -19,7 +19,7 @@ jobs:
       run: |
         brew install ldid          # 安装签名工具
         brew install make          # 安装构建工具
-        brew install openssl@3     # 安装 OpenSSL
+        brew install libarchive    # 安装 libarchive
         
     # 设置 Theos 开发环境
     - name: Setup Theos
@@ -556,10 +556,10 @@ jobs:
         # 修复 Host.h 中的引用
         sed -i.bak 's/FAT \*/Fat \*/g' include/Host.h
         
-        # 添加 ChOma 源文件到编译
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
+        # 添加 ChOma 和 libarchive 的编译标志
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -I$(brew --prefix)/opt/libarchive/include"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -I$(brew --prefix)/opt/libarchive/include"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto -L$(brew --prefix)/opt/libarchive/lib -larchive"
         
         make
         mkdir -p ../TrollStore/Resources
