@@ -585,9 +585,7 @@ jobs:
         trollstorehelper_FILES += ../ChOma/src/Fat.c
         trollstorehelper_FILES += ../ChOma/src/MachO.c
         trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
-        trollstorehelper_FILES += ../Shared/TSUtil.m
-        trollstorehelper_FILES += ../Shared/TSAppInfo.m
-        trollstorehelper_FILES += ../Shared/TSCommonTCCServiceNames.m
+        trollstorehelper_FILES += include/TSUtil.m
         trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony
         
         # 添加额外的编译标志
