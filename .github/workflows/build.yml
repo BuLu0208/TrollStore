@@ -505,7 +505,14 @@ jobs:
         export PATH="/opt/homebrew/bin:$PATH"
         export PATH="$THEOS/bin:$PATH"
         
-        # TrollStore (包含 PersistenceHelper_Embedded)
+        # 编译 RootHelper (生成 PersistenceHelper_Embedded)
+        cd RootHelper
+        make
+        mkdir -p ../TrollStore/Resources
+        cp .theos/obj/trollstorehelper ../TrollStore/Resources/
+        cd ..
+        
+        # TrollStore
         cd TrollStore
         # 设置完整版本的编译参数
         export HELPER_NAME=trollstorehelper
@@ -517,13 +524,6 @@ jobs:
         export ADDITIONAL_CFLAGS="-I$(brew --prefix)/opt/libarchive/include"
         export ADDITIONAL_LDFLAGS="-L$(brew --prefix)/opt/libarchive/lib"
         
-        # 创建 Resources 目录
-        mkdir -p Resources
-        
-        # 编译 PersistenceHelper
-        make PersistenceHelper
-        cp .theos/obj/PersistenceHelper Resources/trollstorehelper
-        
         # 编译主程序
         if ! make package FINALPACKAGE=1; then
           echo "TrollStore 构建失败"
@@ -531,7 +531,7 @@ jobs:
         fi
         cd ..
         
-        # TrollHelper
+        # TrollHelper (包含 PersistenceHelper)
         cd TrollHelper
         if ! make package FINALPACKAGE=1; then
           echo "TrollHelper 构建失败"
