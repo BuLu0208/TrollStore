@@ -231,7 +231,7 @@ jobs:
         @end
         EOF
 
-    # 构建项目
+# 构建项目
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
@@ -240,38 +240,26 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 1. 编译 fastPathSign
-        cd Exploits/fastPathSign
-        make
-        cd ../..
-        
-        # 2. 编译 RootHelper (生成 trollstorehelper)
-        cd RootHelper
-        export TARGET=iphone:clang:16.5:14.0
-        export ARCHS=arm64
-        
-        # 创建 include 目录并复制必要的头文件
-        mkdir -p include
-        cp ../ChOma/src/*.h include/
-        cp ../ChOma/src/*.c include/
-        
-        make DEBUG=0
-        cd ..
-        
-        # 3. 编译 TrollStore
+        # 编译主程序
         cd TrollStore
-        make FINALPACKAGE=1
+        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
+        make package FINALPACKAGE=1
         cd ..
         
-        # 4. 编译 TrollHelper (生成 PersistenceHelper)
+        # 编译持续性助手
         cd TrollHelper
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        make package FINALPACKAGE=1
+        cd ..
+
+        # 编译trollstorehelper
+        cd RootHelper
+        make package FINALPACKAGE=1
         cd ..
         
         # 5. 组装最终文件
         mkdir -p _build
         # 复制 trollstorehelper
-        cp RootHelper/.theos/obj/trollstorehelper _build/
+        cp RootHelper/.theos/obj/trollstorehelper.app _build/
         # 复制 TrollStore
         cp -r TrollStore/.theos/obj/TrollStore.app _build/
         # 复制 PersistenceHelper
