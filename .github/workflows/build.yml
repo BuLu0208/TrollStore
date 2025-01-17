@@ -265,6 +265,7 @@ jobs:
         #include <stdint.h>
         #include <mach/machine.h>
         #include "MachO.h"
+        #include "DyldSharedCache.h"
         
         struct FAT_header {
             uint32_t magic;
@@ -279,19 +280,7 @@ jobs:
             uint32_t align;
         };
         
-        struct FAT {
-            struct FAT_header header;
-            struct FAT_arch* archs;
-            struct MachO** machos;
-            struct MemoryStream* stream;
-            size_t slicesCount;
-            struct MachO** slices;
-        };
-        
-        // 使用与 Host.h 一致的类型定义
-        typedef struct FAT Fat;
-        typedef struct MachO MachO;
-        
+        // 使用 DyldSharedCache.h 中的 Fat 定义
         Fat* fat_init_from_path(const char* path);
         Fat* fat_init_from_memory_stream(struct MemoryStream* stream);
         MachO* fat_find_preferred_slice(Fat* fat);
