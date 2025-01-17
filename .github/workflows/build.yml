@@ -566,6 +566,10 @@ jobs:
         #include <stdint.h>
         #include "MachO.h"
         
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
+        
         typedef struct FAT_header {
             uint32_t magic;
             uint32_t nfat_arch;
@@ -588,68 +592,25 @@ jobs:
         FAT* fat_init_from_path(const char* path);
         MachO* fat_find_preferred_slice(FAT* fat);
         void fat_free(FAT* fat);
+        
+        #ifdef __cplusplus
+        }
+        #endif
         EOF
         
-        # 创建 TSUtil 实现
-        cat > include/TSUtil.m << 'EOF'
-        #import "TSUtil.h"
-        #import <Security/Security.h>
-        #import <Foundation/Foundation.h>
-        #import <CoreTelephony/CoreTelephony.h>
+        # 修复源文件中的引用
+        for file in *.m *.c *.h include/*.m include/*.c include/*.h; do
+          if [ -f "$file" ]; then
+            sed -i.bak 's/#import "Fat\.h"/#import "FAT.h"/g' "$file"
+            sed -i.bak 's/#include "Fat\.h"/#include "FAT.h"/g' "$file"
+            sed -i.bak 's/struct Fat/struct FAT/g' "$file"
+          fi
+        done
         
-        // 声明外部函数
-        void* _CTServerConnectionCreate(CFAllocatorRef, void*, void*);
-        int64_t _CTServerConnectionSetCellularUsagePolicy(CFTypeRef* ct, NSString* identifier, NSDictionary* policies);
-        
-        void chineseWifiFixup(void) {
-            CFTypeRef conn = _CTServerConnectionCreate(kCFAllocatorDefault, NULL, NULL);
-            if (!conn) return;
-            
-            NSString* bundleID = [[NSBundle mainBundle] bundleIdentifier];
-            NSDictionary* policy = @{@"kCTCellularDataUsagePolicy": @"kCTCellularDataUsagePolicyAllow"};
-            _CTServerConnectionSetCellularUsagePolicy(&conn, bundleID, policy);
-            CFRelease(conn);
-        }
-        
-        NSString* dumpEntitlementsFromBinaryAtPath(NSString* binaryPath) {
-            SecStaticCodeRef codeRef = NULL;
-            CFErrorRef error = NULL;
-            SecStaticCodeCreateWithPath((__bridge CFURLRef)[NSURL fileURLWithPath:binaryPath], kSecCSDefaultFlags, &codeRef);
-            if(!codeRef) return nil;
-            
-            CFDictionaryRef entitlementsDictionary = NULL;
-            SecCodeCopySigningInformation(codeRef, kSecCSSigningInformation, &entitlementsDictionary);
-            CFRelease(codeRef);
-            
-            if(!entitlementsDictionary) return nil;
-            NSData* entitlementsData = [NSPropertyListSerialization dataWithPropertyList:(__bridge NSDictionary*)entitlementsDictionary format:NSPropertyListXMLFormat_v1_0 options:0 error:nil];
-            CFRelease(entitlementsDictionary);
-            
-            return [[NSString alloc] initWithData:entitlementsData encoding:NSUTF8StringEncoding];
-        }
-        
-        int getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary) {
-            return 1;  // 简化实现
-        }
-        
-        CFTypeRef getStaticCodeRef(NSString* binaryPath) {
-            SecStaticCodeRef codeRef = NULL;
-            SecStaticCodeCreateWithPath((__bridge CFURLRef)[NSURL fileURLWithPath:binaryPath], kSecCSDefaultFlags, &codeRef);
-            return codeRef;
-        }
-        
-        BOOL isRemovableSystemApp(NSString* appId) {
-            return YES;  // 简化实现
-        }
-        EOF
-        
-        # 修改 Makefile 添加源文件和框架
-        cat >> Makefile << 'EOF'
-        trollstorehelper_LIBRARIES = archive
-        trollstorehelper_FILES += ../ChOma/src/Fat.c
-        trollstorehelper_FILES += include/TSUtil.m
-        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony
-        EOF
+        # 添加编译标志
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -include FAT.h"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -include FAT.h"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
         
         make DEBUG=0
         cd ..
