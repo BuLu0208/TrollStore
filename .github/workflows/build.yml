@@ -258,15 +258,44 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 修改 FAT.h 中的类型定义
-        sed -i.bak 's/typedef struct FAT {/struct FAT {/g' include/FAT.h
-        sed -i.bak 's/typedef struct FAT_header/struct FAT_header/g' include/FAT.h
-        sed -i.bak 's/typedef struct FAT_arch/struct FAT_arch/g' include/FAT.h
+        # 修改类型定义，确保一致性
+        cat > include/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include <mach/machine.h>
+        #include "MachO.h"
         
-        # 修改 MachO.h 中的类型定义
-        sed -i.bak 's/typedef struct MachO {/struct MachO {/g' include/MachO.h
-        sed -i.bak 's/typedef struct MachO_header/struct MachO_header/g' include/MachO.h
-        sed -i.bak 's/typedef struct MemoryStream/struct MemoryStream/g' include/MemoryStream.h
+        struct FAT_header {
+            uint32_t magic;
+            uint32_t nfat_arch;
+        };
+        
+        struct FAT_arch {
+            cpu_type_t cputype;
+            cpu_subtype_t cpusubtype;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t align;
+        };
+        
+        struct FAT {
+            struct FAT_header header;
+            struct FAT_arch* archs;
+            struct MachO** machos;
+            struct MemoryStream* stream;
+            size_t slicesCount;
+            struct MachO** slices;
+        };
+        
+        typedef struct FAT Fat;
+        
+        Fat* fat_init_from_path(const char* path);
+        Fat* fat_init_from_memory_stream(struct MemoryStream* stream);
+        struct MachO* fat_find_preferred_slice(Fat* fat);
+        struct MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
+        void fat_free(Fat* fat);
+        EOF
         
         # 修改 main.m 添加头文件引用和类型使用
         sed -i.bak '1i\
@@ -274,19 +303,12 @@ jobs:
         #import "MachO.h"\
         #import "MemoryStream.h"\
         ' main.m
-        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' main.m
-        sed -i.bak 's/MachO \*macho/struct MachO \*macho/g' main.m
-        sed -i.bak 's/MachO \*machoForExtraction/struct MachO \*machoForExtraction/g' main.m
-        sed -i.bak 's/MemoryStream \*stream/struct MemoryStream \*stream/g' main.m
         
-        # 修改 FAT.c 中的类型使用
-        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' ../ChOma/src/FAT.c
-        sed -i.bak 's/MachO \*macho/struct MachO \*macho/g' ../ChOma/src/FAT.c
-        sed -i.bak 's/MemoryStream \*stream/struct MemoryStream \*stream/g' ../ChOma/src/FAT.c
-        
-        # 修改 MachO.c 中的类型使用
-        sed -i.bak 's/MachO \*macho/struct MachO \*macho/g' ../ChOma/src/MachO.c
-        sed -i.bak 's/MemoryStream \*stream/struct MemoryStream \*stream/g' ../ChOma/src/MachO.c
+        # 修改 main.m 中的类型使用
+        sed -i.bak 's/struct FAT \*fat/Fat \*fat/g' main.m
+        sed -i.bak 's/struct MachO \*macho/MachO \*macho/g' main.m
+        sed -i.bak 's/struct MachO \*machoForExtraction/MachO \*machoForExtraction/g' main.m
+        sed -i.bak 's/struct MemoryStream \*stream/MemoryStream \*stream/g' main.m
         
         # 修改 Makefile 添加源文件和包含路径
         cat >> Makefile << 'EOF'
