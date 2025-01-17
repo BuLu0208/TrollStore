@@ -19,7 +19,7 @@ jobs:
       run: |
         brew install ldid          # 安装签名工具
         brew install make          # 安装构建工具
-        brew install libarchive    # 安装 libarchive
+        brew install openssl@3     # 安装 OpenSSL
         
     # 设置 Theos 开发环境
     - name: Setup Theos
@@ -48,127 +48,12 @@ jobs:
       run: |
         cd Exploits/fastPathSign
         cp ../../ChOma/src/*.h src/
-        cp ../../ChOma/src/*.c src/
-        
-        # 创建必要的头文件
-        cat > src/MacTypes.h << 'EOF'
-        #pragma once
-        #include <mach/machine.h>
-        
-        typedef cpu_type_t cpu_type_t;
-        typedef cpu_subtype_t cpu_subtype_t;
-        
-        #define MH_OBJECT   0x1
-        #define MH_EXECUTE  0x2
-        #define MH_DYLIB    0x6
-        #define MH_DSYM     0xa
-        
-        #define PAGE_MASK   0xFFF
-        EOF
-        
-        # 修复 MachO.h
-        cat > src/MachO.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include <stdbool.h>
-        #include "MemoryStream.h"
-        #include "MacTypes.h"
-        
-        struct FAT;  // 前向声明
-        struct DyldSharedCache;
-        
-        typedef struct MachOSegment {
-            struct segment_command_64 command;
-            struct section_64* sections;
-        } MachOSegment;
-        
-        typedef struct FilesetMachO {
-            char* entry_id;
-            struct FAT* underlyingMachO;
-        } FilesetMachO;
-        
-        typedef struct MachO {
-            MemoryStream* stream;
-            struct mach_header_64 machHeader;
-            bool is32Bit;
-            uint32_t segmentCount;
-            MachOSegment** segments;
-            uint32_t filesetCount;
-            FilesetMachO* filesetMachos;
-            struct DyldSharedCache* containingCache;
-        } MachO;
-        
-        MachO* macho_init(MemoryStream* stream, bool is64Bit);
-        MachO* macho_init_for_writing(const char* path);
-        void macho_free(MachO* macho);
-        int macho_read_at_offset(MachO* macho, uint64_t offset, size_t size, void* outBuf);
-        int macho_write_at_offset(MachO* macho, uint64_t offset, size_t size, const void* data);
-        int macho_read_at_vmaddr(MachO* macho, uint64_t vmaddr, size_t size, void* outBuf);
-        int macho_read_string_at_offset(MachO* macho, uint64_t offset, char** outString);
-        int macho_read_string_at_vmaddr(MachO* macho, uint64_t vmaddr, char** outString);
-        uint32_t macho_get_filetype(MachO* macho);
-        bool macho_is_encrypted(MachO* macho);
-        MemoryStream* macho_get_stream(MachO* macho);
-        void macho_enumerate_load_commands(MachO* macho, void (^handler)(struct load_command loadCommand, uint64_t offset, void* cmd, bool* stop));
-        void macho_enumerate_segments(MachO* macho, void (^handler)(struct segment_command_64* segment, bool* stop));
-        void macho_enumerate_sections(MachO* macho, void (^handler)(struct section_64* section, struct segment_command_64* segment, bool* stop));
-        EOF
-        
-        # 修复 FAT.h
-        cat > src/FAT.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include "MachO.h"
-        #include "MacTypes.h"
-        
-        #ifdef __cplusplus
-        extern "C" {
-        #endif
-        
-        typedef struct FAT_header {
-            uint32_t magic;
-            uint32_t nfat_arch;
-        } FAT_header;
-        
-        typedef struct FAT_arch {
-            uint32_t cputype;
-            uint32_t cpusubtype;
-            uint32_t offset;
-            uint32_t size;
-            uint32_t align;
-        } FAT_arch;
-        
-        typedef struct FAT {
-            FAT_header header;
-            FAT_arch* archs;
-            MachO** machos;
-            MemoryStream* stream;
-            size_t slicesCount;
-            MachO** slices;
-        } FAT;
-        
-        FAT* fat_init_from_path(const char* path);
-        FAT* fat_init_from_memory_stream(MemoryStream* stream);
-        FAT* fat_dsc_init_from_memory_stream(MemoryStream* stream, void* sharedCache, void* image);
-        MachO* fat_find_preferred_slice(FAT* fat);
-        MachO* fat_find_slice(FAT* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
-        MachO* fat_get_single_slice(FAT* fat);
-        void fat_free(FAT* fat);
-        
-        #ifdef __cplusplus
-        }
-        #endif
-        EOF
-        
-        # 修复 coretrust_bug.c 中的函数调用
+        # 修复文件引用和函数调用
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
         sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
-        
-        # 编译
         make
         chmod +x fastPathSign
-        cd ../..
         
     # 更新源代码中的 URL 和修复依赖
     - name: Update source URLs and fix dependencies
@@ -317,7 +202,6 @@ jobs:
         #import <sys/sysctl.h>
         #import <mach-o/dyld.h>
         #import <libroot.h>
-        #import <CoreTelephony/CoreTelephony.h>
         
         static EXPLOIT_TYPE gPlatformVulnerabilities;
         
@@ -329,7 +213,7 @@ jobs:
         extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
         extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
         
-        # 声明为外部函数，实现放在 TSUtil.m 中
+        // 声明为外部函数，实现放在 TSUtil.m 中
         void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion));
         void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion));
         
@@ -403,47 +287,6 @@ jobs:
         {
             completionHandler(nil);
         }
-        
-        void chineseWifiFixup(void) {
-            CFTypeRef conn = _CTServerConnectionCreate(kCFAllocatorDefault, NULL, NULL);
-            if (!conn) return;
-            
-            NSString* bundleID = [[NSBundle mainBundle] bundleIdentifier];
-            NSDictionary* policy = @{@"kCTCellularDataUsagePolicy": @"kCTCellularDataUsagePolicyAllow"};
-            _CTServerConnectionSetCellularUsagePolicy(&conn, bundleID, policy);
-            CFRelease(conn);
-        }
-        
-        NSString* dumpEntitlementsFromBinaryAtPath(NSString* binaryPath) {
-            SecStaticCodeRef codeRef = NULL;
-            CFErrorRef error = NULL;
-            SecStaticCodeCreateWithPath((__bridge CFURLRef)[NSURL fileURLWithPath:binaryPath], kSecCSDefaultFlags, &codeRef);
-            if(!codeRef) return nil;
-            
-            CFDictionaryRef entitlementsDictionary = NULL;
-            SecCodeCopySigningInformation(codeRef, kSecCSSigningInformation, &entitlementsDictionary);
-            CFRelease(codeRef);
-            
-            if(!entitlementsDictionary) return nil;
-            NSData* entitlementsData = [NSPropertyListSerialization dataWithPropertyList:(__bridge NSDictionary*)entitlementsDictionary format:NSPropertyListXMLFormat_v1_0 options:0 error:nil];
-            CFRelease(entitlementsDictionary);
-            
-            return [[NSString alloc] initWithData:entitlementsData encoding:NSUTF8StringEncoding];
-        }
-        
-        int getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary) {
-            return 1;  // 简化实现
-        }
-        
-        CFTypeRef getStaticCodeRef(NSString* binaryPath) {
-            SecStaticCodeRef codeRef = NULL;
-            SecStaticCodeCreateWithPath((__bridge CFURLRef)[NSURL fileURLWithPath:binaryPath], kSecCSDefaultFlags, &codeRef);
-            return codeRef;
-        }
-        
-        BOOL isRemovableSystemApp(NSString* appId) {
-            return YES;  // 简化实现
-        }
         EOF
         
         # 将原文件中的其他函数复制到新文件，但跳过原有的 fetchLatestTrollStoreVersion 和 github_fetchLatestVersion 函数
@@ -475,7 +318,6 @@ jobs:
         cat > TrollStore/TSAppInfo.h << 'EOF'
         #import <Foundation/Foundation.h>
         @import UIKit;
-
         @interface TSAppInfo : NSObject
         {
             NSString* _path;
@@ -488,7 +330,6 @@ jobs:
             UIImage* _cachedPreviewIcon;
             int64_t _cachedSize;
         }
-
         - (instancetype)initWithIPAPath:(NSString*)ipaPath;
         - (instancetype)initWithAppBundlePath:(NSString*)bundlePath;
         - (NSError*)determineAppBundleName;
@@ -510,7 +351,6 @@ jobs:
         - (NSAttributedString*)detailedInfoDescription;
         - (BOOL)isDebuggable;
         - (void)log;
-
         @end
         EOF
         
@@ -632,250 +472,46 @@ jobs:
         
         @end
         EOF
-
-    # 检查构建环境
-    - name: Check build environment
-      run: |
-        # 设置 PATH
-        export PATH="/opt/homebrew/bin:$PATH"
-        
-        # 检查必要工具
-        echo "检查 ldid..."
-        which ldid || exit 1
-        echo "检查 make..."
-        which make || exit 1
-        
-        echo "检查 THEOS 环境..."
-        echo "THEOS=$THEOS"
-        ls -la $THEOS || echo "THEOS 目录不存在"
-      env:
-        THEOS: ${{ github.workspace }}/theos
-
     # 构建项目
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
         set -e  # 遇到错误立即退出
-        
-        # 设置环境变量
-        export PATH="$THEOS/bin:$PATH"
+        export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 1. 编译 fastPathSign
-        cd Exploits/fastPathSign
-        cp ../../ChOma/src/*.h src/
-        cp ../../ChOma/src/*.c src/
-        
-        # 创建必要的头文件
-        cat > src/MacTypes.h << 'EOF'
-        #pragma once
-        #include <mach/machine.h>
-        
-        typedef cpu_type_t cpu_type_t;
-        typedef cpu_subtype_t cpu_subtype_t;
-        
-        #define MH_OBJECT   0x1
-        #define MH_EXECUTE  0x2
-        #define MH_DYLIB    0x6
-        #define MH_DSYM     0xa
-        
-        #define PAGE_MASK   0xFFF
-        EOF
-        
-        # 修复 MachO.h
-        cat > src/MachO.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include <stdbool.h>
-        #include "MemoryStream.h"
-        #include "MacTypes.h"
-        
-        struct FAT;  // 前向声明
-        struct DyldSharedCache;
-        
-        typedef struct MachOSegment {
-            struct segment_command_64 command;
-            struct section_64* sections;
-        } MachOSegment;
-        
-        typedef struct FilesetMachO {
-            char* entry_id;
-            struct FAT* underlyingMachO;
-        } FilesetMachO;
-        
-        typedef struct MachO {
-            MemoryStream* stream;
-            struct mach_header_64 machHeader;
-            bool is32Bit;
-            uint32_t segmentCount;
-            MachOSegment** segments;
-            uint32_t filesetCount;
-            FilesetMachO* filesetMachos;
-            struct DyldSharedCache* containingCache;
-        } MachO;
-        
-        MachO* macho_init(MemoryStream* stream, bool is64Bit);
-        MachO* macho_init_for_writing(const char* path);
-        void macho_free(MachO* macho);
-        int macho_read_at_offset(MachO* macho, uint64_t offset, size_t size, void* outBuf);
-        int macho_write_at_offset(MachO* macho, uint64_t offset, size_t size, const void* data);
-        int macho_read_at_vmaddr(MachO* macho, uint64_t vmaddr, size_t size, void* outBuf);
-        int macho_read_string_at_offset(MachO* macho, uint64_t offset, char** outString);
-        int macho_read_string_at_vmaddr(MachO* macho, uint64_t vmaddr, char** outString);
-        uint32_t macho_get_filetype(MachO* macho);
-        bool macho_is_encrypted(MachO* macho);
-        MemoryStream* macho_get_stream(MachO* macho);
-        void macho_enumerate_load_commands(MachO* macho, void (^handler)(struct load_command loadCommand, uint64_t offset, void* cmd, bool* stop));
-        void macho_enumerate_segments(MachO* macho, void (^handler)(struct segment_command_64* segment, bool* stop));
-        void macho_enumerate_sections(MachO* macho, void (^handler)(struct section_64* section, struct segment_command_64* segment, bool* stop));
-        EOF
-        
-        # 修复 FAT.h
-        cat > src/FAT.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include "MachO.h"
-        #include "MacTypes.h"
-        
-        #ifdef __cplusplus
-        extern "C" {
-        #endif
-        
-        typedef struct FAT_header {
-            uint32_t magic;
-            uint32_t nfat_arch;
-        } FAT_header;
-        
-        typedef struct FAT_arch {
-            uint32_t cputype;
-            uint32_t cpusubtype;
-            uint32_t offset;
-            uint32_t size;
-            uint32_t align;
-        } FAT_arch;
-        
-        typedef struct FAT {
-            FAT_header header;
-            FAT_arch* archs;
-            MachO** machos;
-            MemoryStream* stream;
-            size_t slicesCount;
-            MachO** slices;
-        } FAT;
-        
-        FAT* fat_init_from_path(const char* path);
-        FAT* fat_init_from_memory_stream(MemoryStream* stream);
-        FAT* fat_dsc_init_from_memory_stream(MemoryStream* stream, void* sharedCache, void* image);
-        MachO* fat_find_preferred_slice(FAT* fat);
-        MachO* fat_find_slice(FAT* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
-        MachO* fat_get_single_slice(FAT* fat);
-        void fat_free(FAT* fat);
-        
-        #ifdef __cplusplus
-        }
-        #endif
-        EOF
-        
-        # 修复 coretrust_bug.c 中的函数调用
-        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
-        
-        # 编译
-        make
-        chmod +x fastPathSign
-        cd ../..
-        
-        # 2. 编译 RootHelper (生成 trollstorehelper)
+        # 1. 编译 RootHelper (生成 trollstorehelper)
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
-        
-        # 复制 ChOma 源文件和修复引用
-        mkdir -p include
-        cp ../ChOma/src/*.h include/
-        cp ../ChOma/src/*.c include/
-        
-        # 修复 FAT 相关的文件和引用
-        cat > include/FAT.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include "MachO.h"
-        #include "MacTypes.h"
-        
-        #ifdef __cplusplus
-        extern "C" {
-        #endif
-        
-        typedef struct FAT_header {
-            uint32_t magic;
-            uint32_t nfat_arch;
-        } FAT_header;
-        
-        typedef struct FAT_arch {
-            uint32_t cputype;
-            uint32_t cpusubtype;
-            uint32_t offset;
-            uint32_t size;
-            uint32_t align;
-        } FAT_arch;
-        
-        typedef struct FAT {
-            FAT_header header;
-            FAT_arch* archs;
-            MachO** machos;
-        } FAT;
-        
-        FAT* fat_init_from_path(const char* path);
-        MachO* fat_find_preferred_slice(FAT* fat);
-        void fat_free(FAT* fat);
-        
-        #ifdef __cplusplus
-        }
-        #endif
-        EOF
-        
-        # 修复源文件中的引用
-        for file in *.m *.c *.h include/*.m include/*.c include/*.h; do
-          if [ -f "$file" ]; then
-            sed -i.bak 's/#import "Fat\.h"/#import "FAT.h"/g' "$file"
-            sed -i.bak 's/#include "Fat\.h"/#include "FAT.h"/g' "$file"
-            sed -i.bak 's/struct Fat/struct FAT/g' "$file"
-          fi
-        done
-        
-        # 添加编译标志
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -include FAT.h"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -include FAT.h"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
-        
         make DEBUG=0
+        cd ..
+        
+        # 2. 编译 TrollHelper (生成 PersistenceHelper)
+        cd TrollHelper
+        # 复制 trollstorehelper
+        mkdir -p Resources
+        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        # 保存 PersistenceHelper
+        mkdir -p ../build
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../build/PersistenceHelper
         cd ..
         
         # 3. 编译 TrollStore
         cd TrollStore
-        export TARGET=iphone:clang:16.5:14.0
-        export ARCHS=arm64
-        export TARGET_CODESIGN=../Exploits/fastPathSign/fastPathSign
+        # 复制必要的组件
+        mkdir -p .theos/obj/TrollStore.app
+        cp ../RootHelper/.theos/obj/trollstorehelper .theos/obj/TrollStore.app/
+        cp ../build/PersistenceHelper .theos/obj/TrollStore.app/
         make package FINALPACKAGE=1
         cd ..
         
-        # 4. 编译 TrollHelper
-        cd TrollHelper
-        make clean
-        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
-        make package FINALPACKAGE=1
-        cd ..
-        
-        # 5. 创建最终的 tar 包
-        mkdir -p _build
-        cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper _build/PersistenceHelper
-        cp RootHelper/.theos/obj/trollstorehelper TrollStore/.theos/obj/TrollStore.app/
-        cp _build/PersistenceHelper TrollStore/.theos/obj/TrollStore.app/
-        tar -czvf _build/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
+        # 4. 创建最终的 tar 包
+        mkdir -p packages
+        tar -czvf packages/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
 
     # 上传构建产物
     - name: Upload artifact
@@ -883,21 +519,3 @@ jobs:
       with:
         name: TrollStore
         path: packages/TrollStore.tar 
-
-    # 验证构建产物
-    - name: Verify build artifacts
-      run: |
-        echo "检查 TrollStore 构建产物..."
-        ls -la TrollStore/packages/
-        echo "检查 TrollHelper 构建产物..."
-        ls -la TrollHelper/packages/
-        echo "检查 PersistenceHelper..."
-        ls -la TrollStore/Resources/trollstorehelper
-        
-        # 检查 deb 包内容
-        cd packages
-        for deb in *.deb; do
-          echo "检查 $deb 的内容:"
-          dpkg-deb -c "$deb"
-        done 
-
