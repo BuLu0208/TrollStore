@@ -258,10 +258,16 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
+        # 修改 FAT.h 中的类型定义
+        sed -i.bak 's/typedef struct FAT {/struct FAT {/g' include/FAT.h
+        
         # 修改 main.m 添加头文件引用
         sed -i.bak '1i\
         #import "FAT.h"\
         ' main.m
+        
+        # 修改 main.m 中的 FAT 类型使用
+        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' main.m
         
         # 修改 Makefile 添加源文件和包含路径
         cat >> Makefile << 'EOF'
