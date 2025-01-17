@@ -478,6 +478,10 @@ jobs:
         THEOS: ${{ github.workspace }}/theos
       run: |
         set -e  # 遇到错误立即退出
+        
+        # 安装 libarchive
+        brew install libarchive
+        
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
@@ -545,9 +549,9 @@ jobs:
         EOF
         
         # 添加编译标志
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -I/opt/homebrew/opt/libarchive/include"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -I/opt/homebrew/opt/libarchive/include"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto -L/opt/homebrew/opt/libarchive/lib -larchive"
         
         # 修改 Makefile 添加源文件和依赖
         cat >> Makefile << 'EOF'
