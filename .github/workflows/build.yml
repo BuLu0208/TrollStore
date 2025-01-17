@@ -510,21 +510,54 @@ jobs:
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
         
-        # 复制 ChOma 源文件
+        # 复制 ChOma 源文件和修复引用
         mkdir -p include
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 修复 FAT.h 引用
-        if [ -f include/Fat.h ]; then
-          mv include/Fat.h include/FAT.h
-        fi
-        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' include/*.h
+        # 修复 FAT 相关的文件和引用
+        cat > include/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include "MachO.h"
+        
+        typedef struct FAT_header {
+            uint32_t magic;
+            uint32_t nfat_arch;
+        } FAT_header;
+        
+        typedef struct FAT_arch {
+            uint32_t cputype;
+            uint32_t cpusubtype;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t align;
+        } FAT_arch;
+        
+        typedef struct FAT {
+            FAT_header header;
+            FAT_arch* archs;
+            MachO** machos;
+        } FAT;
+        
+        FAT* fat_init_from_path(const char* path);
+        MachO* fat_find_preferred_slice(FAT* fat);
+        void fat_free(FAT* fat);
+        EOF
+        
+        # 修复所有源文件中的引用
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/Fat\./FAT./g'
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/struct Fat/struct FAT/g'
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
         
         # 添加编译标志
         export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
         export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
         export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
+        
+        # 修改 Makefile 添加源文件
+        echo "trollstorehelper_FILES += ../ChOma/src/Fat.c" >> Makefile
         
         make DEBUG=0
         cd ..
