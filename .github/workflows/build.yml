@@ -482,95 +482,51 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 1. 编译 RootHelper (生成 trollstorehelper)
+        # 1. 编译 fastPathSign
+        cd Exploits/fastPathSign
+        make
+        cd ../..
+        
+        # 2. 编译 RootHelper
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
-        
-        # 创建 include 目录并复制必要的头文件
-        mkdir -p include
-        cp ../ChOma/src/*.h include/
-        cp ../ChOma/src/*.c include/
-        
-        # 创建 FAT.h
-        cat > include/FAT.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include <mach/machine.h>
-        #include "MachO.h"
-        
-        typedef struct FAT_header {
-            uint32_t magic;
-            uint32_t nfat_arch;
-        } FAT_header;
-        
-        typedef struct FAT_arch {
-            cpu_type_t cputype;
-            cpu_subtype_t cpusubtype;
-            uint32_t offset;
-            uint32_t size;
-            uint32_t align;
-        } FAT_arch;
-        
-        typedef struct FAT {
-            FAT_header header;
-            FAT_arch* archs;
-            MachO** machos;
-            MemoryStream* stream;
-            size_t slicesCount;
-            MachO** slices;
-        } FAT;
-        
-        FAT* fat_init_from_path(const char* path);
-        FAT* fat_init_from_memory_stream(MemoryStream* stream);
-        MachO* fat_find_preferred_slice(FAT* fat);
-        MachO* fat_find_slice(FAT* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
-        void fat_free(FAT* fat);
-        EOF
-        
-        # 添加编译标志
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
-        
-        # 修改 Makefile 添加源文件
-        cat >> Makefile << 'EOF'
-        trollstorehelper_LIBRARIES = archive
-        trollstorehelper_FILES += ../ChOma/src/Fat.c
-        trollstorehelper_FRAMEWORKS = Security Foundation
-        EOF
-        
         make DEBUG=0
-        cd ..
-        
-        # 2. 编译 TrollHelper (生成 PersistenceHelper)
-        cd TrollHelper
-        # 复制 trollstorehelper
-        mkdir -p Resources
-        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
-        # 保存 PersistenceHelper
-        mkdir -p ../build
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../build/PersistenceHelper
         cd ..
         
         # 3. 编译 TrollStore
         cd TrollStore
-        # 复制必要的组件
-        mkdir -p .theos/obj/TrollStore.app
-        cp ../RootHelper/.theos/obj/trollstorehelper .theos/obj/TrollStore.app/
-        cp ../build/PersistenceHelper .theos/obj/TrollStore.app/
-        make package FINALPACKAGE=1
+        make FINALPACKAGE=1
         cd ..
         
-        # 4. 创建最终的 tar 包
-        mkdir -p packages
-        tar -czvf packages/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
+        # 4. 编译 TrollHelper (嵌入式版本)
+        cd TrollHelper
+        # 清理并编译标准版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
+        
+        # 清理并编译 Legacy arm64 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
+        
+        # 清理并编译 arm64e 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
+        cd ..
+        
+        # 5. 组装 TrollStore
+        mkdir -p _build
+        cp RootHelper/.theos/obj/trollstorehelper TrollStore/.theos/obj/TrollStore.app/
+        cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper TrollStore/.theos/obj/TrollStore.app/PersistenceHelper
+        export COPYFILE_DISABLE=1
+        tar -czvf _build/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
 
     # 上传构建产物
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: TrollStore
-        path: packages/TrollStore.tar 
+        path: _build/TrollStore.tar 
