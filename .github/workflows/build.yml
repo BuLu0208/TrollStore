@@ -709,8 +709,11 @@ jobs:
           _build/TrollStore.tar
           _build/PersistenceHelper_Embedded
           _build/PersistenceHelper_Embedded_Legacy_arm64
-          _build/PersistenceHelper_Embedded_Legacy_arm64e 
+          _build/PersistenceHelper_Embedded_Legacy_arm64e
 
+    # 创建工具函数头文件
+    - name: Create helper files
+      run: |
         # 创建工具函数头文件
         cat > include/TSHelper.h << 'EOF'
         #import <Foundation/Foundation.h>
