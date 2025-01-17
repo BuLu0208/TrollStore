@@ -548,10 +548,10 @@ jobs:
         void fat_free(FAT* fat);
         EOF
         
-        # 添加编译标志
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -I/opt/homebrew/opt/libarchive/include"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -I/opt/homebrew/opt/libarchive/include"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto -L/opt/homebrew/opt/libarchive/lib -larchive"
+        # 添加编译标志，使用 iOS SDK 的系统库
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
         
         # 修改 Makefile 添加源文件和依赖
         cat >> Makefile << 'EOF'
