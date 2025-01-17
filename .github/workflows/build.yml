@@ -54,6 +54,7 @@ jobs:
         sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
         make
         chmod +x fastPathSign
+        cd ../..
         
     # 更新源代码中的 URL 和修复依赖
     - name: Update source URLs and fix dependencies
@@ -543,11 +544,23 @@ jobs:
       run: |
         set -e  # 遇到错误立即退出
         
-        # 设置 PATH 以包含 Homebrew 路径
-        export PATH="/opt/homebrew/bin:$PATH"
+        # 设置环境变量
         export PATH="$THEOS/bin:$PATH"
+        export THEOS_DEVICE_IP=127.0.0.1
+        export THEOS_PLATFORM=ios
         
-        # 1. 编译 RootHelper (生成 trollstorehelper)
+        # 1. 编译 fastPathSign
+        cd Exploits/fastPathSign
+        cp ../../ChOma/src/*.h src/
+        # 修复文件引用和函数调用
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
+        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        make
+        chmod +x fastPathSign
+        cd ../..
+        
+        # 2. 编译 RootHelper (生成 trollstorehelper)
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
@@ -556,8 +569,6 @@ jobs:
         mkdir -p include
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
-        cp ../Shared/*.h include/
-        cp ../Shared/*.m include/
         
         # 修复 FAT 相关的文件和引用
         cat > include/FAT.h << 'EOF'
@@ -615,29 +626,27 @@ jobs:
         make DEBUG=0
         cd ..
         
-        # 2. 编译 TrollHelper (生成 PersistenceHelper)
-        cd TrollHelper
-        # 复制 trollstorehelper
-        mkdir -p Resources
-        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
-        # 保存 PersistenceHelper
-        mkdir -p ../build
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../build/PersistenceHelper
-        cd ..
-        
         # 3. 编译 TrollStore
         cd TrollStore
-        # 复制必要的组件
-        mkdir -p .theos/obj/TrollStore.app
-        cp ../RootHelper/.theos/obj/trollstorehelper .theos/obj/TrollStore.app/
-        cp ../build/PersistenceHelper .theos/obj/TrollStore.app/
+        export TARGET=iphone:clang:16.5:14.0
+        export ARCHS=arm64
+        export TARGET_CODESIGN=../Exploits/fastPathSign/fastPathSign
         make package FINALPACKAGE=1
         cd ..
         
-        # 4. 创建最终的 tar 包
-        mkdir -p packages
-        tar -czvf packages/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
+        # 4. 编译 TrollHelper
+        cd TrollHelper
+        make clean
+        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
+        make package FINALPACKAGE=1
+        cd ..
+        
+        # 5. 创建最终的 tar 包
+        mkdir -p _build
+        cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper _build/PersistenceHelper
+        cp RootHelper/.theos/obj/trollstorehelper TrollStore/.theos/obj/TrollStore.app/
+        cp _build/PersistenceHelper TrollStore/.theos/obj/TrollStore.app/
+        tar -czvf _build/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
 
     # 上传构建产物
     - name: Upload artifact
@@ -662,3 +671,4 @@ jobs:
           echo "检查 $deb 的内容:"
           dpkg-deb -c "$deb"
         done 
+
