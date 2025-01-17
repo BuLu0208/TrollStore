@@ -515,7 +515,7 @@ jobs:
         cp ../ChOma/src/*.h include/
         
         # 修复 FAT.h 引用
-        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' include/*.h include/*.m
+        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' include/*.h
         if [ -f include/Fat.h ]; then
           mv include/Fat.h include/FAT.h
         fi
