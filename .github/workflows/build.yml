@@ -481,19 +481,32 @@ jobs:
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
-        export PATH=$THEOS/bin:$PATH
-        export THEOS_DEVICE_IP=127.0.0.1
-        export THEOS_PLATFORM=ios
+        set -e  # 遇到错误立即退出
         
-        # 编译主程序
+        # TrollStore (包含 PersistenceHelper_Embedded)
         cd TrollStore
-        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
-        make package FINALPACKAGE=1
+        # 设置完整版本的编译参数
+        export HELPER_NAME=trollstorehelper
+        export TARGET=iphone:clang:16.5:14.0
+        export ARCHS=arm64
+        export TARGET_CODESIGN=../Exploits/fastPathSign/fastPathSign
+        
+        # 确保 libarchive 和其他依赖可用
+        export ADDITIONAL_CFLAGS="-I$(brew --prefix)/opt/libarchive/include"
+        export ADDITIONAL_LDFLAGS="-L$(brew --prefix)/opt/libarchive/lib"
+        
+        if ! make package FINALPACKAGE=1; then
+          echo "TrollStore 构建失败"
+          exit 1
+        fi
         cd ..
         
-        # 编译持续性助手
+        # TrollHelper
         cd TrollHelper
-        make package FINALPACKAGE=1
+        if ! make package FINALPACKAGE=1; then
+          echo "TrollHelper 构建失败"
+          exit 1
+        fi
         cd ..
         
     # 创建最终的发布包
@@ -512,3 +525,29 @@ jobs:
       with:
         name: TrollStore
         path: packages/TrollStore.tar 
+
+    # 检查构建环境
+    - name: Check build environment
+      run: |
+        # 检查必要工具
+        which ldid || exit 1
+        which make || exit 1
+        # 检查theos安装
+        test -d "$THEOS" || exit 1 
+
+    # 验证构建产物
+    - name: Verify build artifacts
+      run: |
+        echo "检查 TrollStore 构建产物..."
+        ls -la TrollStore/packages/
+        echo "检查 TrollHelper 构建产物..."
+        ls -la TrollHelper/packages/
+        echo "检查 PersistenceHelper..."
+        ls -la TrollStore/Resources/trollstorehelper
+        
+        # 检查 deb 包内容
+        cd packages
+        for deb in *.deb; do
+          echo "检查 $deb 的内容:"
+          dpkg-deb -c "$deb"
+        done 
