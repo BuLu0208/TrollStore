@@ -236,11 +236,6 @@ jobs:
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
-        set -e  # 遇到错误立即退出
-        
-        # 安装 libarchive
-        brew install libarchive
-        
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
@@ -260,32 +255,6 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 创建 Security 相关头文件
-        cat > include/TSSecurityHelper.h << 'EOF'
-        #import <Foundation/Foundation.h>
-        #import <Security/Security.h>
-
-        NS_ASSUME_NONNULL_BEGIN
-        // ... (TSSecurityHelper.h 的内容)
-        NS_ASSUME_NONNULL_END
-        EOF
-
-        # 创建实现文件
-        cat > include/TSSecurityHelper.m << 'EOF'
-        #import "TSSecurityHelper.h"
-        // ... (TSSecurityHelper.m 的内容)
-        EOF
-
-        # 修改 main.m 添加头文件引用
-        sed -i.bak '1i\
-        #import "TSSecurityHelper.h"\
-        ' main.m
-
-        # 修改 Makefile 添加新的源文件
-        cat >> Makefile << 'EOF'
-        trollstorehelper_FILES += include/TSSecurityHelper.m
-        EOF
-
         make DEBUG=0
         cd ..
         
