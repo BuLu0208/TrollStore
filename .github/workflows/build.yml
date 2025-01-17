@@ -253,6 +253,20 @@ jobs:
 
         # 编译trollstorehelper
         cd RootHelper
+        # 创建 include 目录并复制必要的头文件
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        cp ../ChOma/src/*.c include/
+        
+        # 修改 Makefile 添加源文件和包含路径
+        cat >> Makefile << 'EOF'
+        trollstorehelper_FILES += ../ChOma/src/FAT.c
+        trollstorehelper_FILES += ../ChOma/src/MachO.c
+        trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
+        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src
+        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src
+        EOF
+        
         make package FINALPACKAGE=1
         cd ..
         
