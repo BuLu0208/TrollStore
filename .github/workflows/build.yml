@@ -556,10 +556,13 @@ jobs:
         # 修复 Host.h 中的引用
         sed -i.bak 's/FAT \*/Fat \*/g' include/Host.h
         
-        # 添加 ChOma 和 libarchive 的编译标志
-        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src -I$(brew --prefix)/opt/libarchive/include"
-        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src -I$(brew --prefix)/opt/libarchive/include"
-        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto -L$(brew --prefix)/opt/libarchive/lib -larchive"
+        # 添加 ChOma 的编译标志，移除 libarchive
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_LDFLAGS="-L../ChOma/external/ios -lcrypto"
+        
+        # 修改 Makefile 添加 libarchive
+        echo "trollstorehelper_LIBRARIES = archive" >> Makefile
         
         make
         mkdir -p ../TrollStore/Resources
