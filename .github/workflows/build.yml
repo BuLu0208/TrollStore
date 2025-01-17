@@ -522,6 +522,9 @@ jobs:
         #include <stdint.h>
         #include "MachO.h"
         
+        #ifndef FAT_HEADER_DEFINED
+        #define FAT_HEADER_DEFINED
+        
         typedef struct FAT_header {
             uint32_t magic;
             uint32_t nfat_arch;
@@ -535,21 +538,23 @@ jobs:
             uint32_t align;
         } FAT_arch;
         
-        typedef struct FAT {
+        typedef struct Fat {
             FAT_header header;
             FAT_arch* archs;
             MachO** machos;
-        } FAT;
+        } Fat;
         
-        typedef FAT Fat;  // 兼容性别名
+        typedef Fat FAT;  // 反向兼容性别名
         
         FAT* fat_init_from_path(const char* path);
         MachO* fat_find_preferred_slice(FAT* fat);
         void fat_free(FAT* fat);
+        
+        #endif /* FAT_HEADER_DEFINED */
         EOF
         
         # 修复 Host.h 中的引用
-        sed -i.bak 's/Fat \*/FAT \*/g' include/Host.h
+        sed -i.bak 's/FAT \*/Fat \*/g' include/Host.h
         
         # 添加 ChOma 源文件到编译
         export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
