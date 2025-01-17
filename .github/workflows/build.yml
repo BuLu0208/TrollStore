@@ -505,121 +505,36 @@ jobs:
         export PATH="/opt/homebrew/bin:$PATH"
         export PATH="$THEOS/bin:$PATH"
         
-        # 编译 RootHelper (生成 trollstorehelper)
+        # 1. 编译 RootHelper (生成 trollstorehelper)
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
-        
-        # 复制 ChOma 和共享代码的源文件和头文件
-        mkdir -p include
-        cp ../ChOma/src/*.h include/
-        cp ../ChOma/src/*.c include/
-        cp ../Shared/*.h include/
-        cp ../Shared/*.m include/
-        
-        # 创建缺失的函数实现
-        cat > include/TSUtil.h << 'EOF'
-        #import <Foundation/Foundation.h>
-        
-        NSString* dumpEntitlementsFromBinaryAtPath(NSString* binaryPath);
-        int getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary);
-        CFTypeRef getStaticCodeRef(NSString* binaryPath);
-        BOOL isRemovableSystemApp(NSString* appId);
-        EOF
-        
-        cat > include/TSUtil.m << 'EOF'
-        #import "TSUtil.h"
-        #import <Security/Security.h>
-        
-        NSString* dumpEntitlementsFromBinaryAtPath(NSString* binaryPath) {
-            // 简化实现
-            return nil;
-        }
-        
-        int getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary) {
-            // 简化实现
-            return 0;
-        }
-        
-        CFTypeRef getStaticCodeRef(NSString* binaryPath) {
-            // 简化实现
-            return NULL;
-        }
-        
-        BOOL isRemovableSystemApp(NSString* appId) {
-            // 简化实现
-            return NO;
-        }
-        EOF
-        
-        # 修改 Makefile 添加新的源文件
-        cat >> Makefile << 'EOF'
-        trollstorehelper_LIBRARIES = archive
-        trollstorehelper_FILES += $(wildcard ../Shared/*.m)
-        trollstorehelper_FILES += include/TSUtil.m
-        trollstorehelper_FRAMEWORKS = Security
-        EOF
-        
-        make
-        mkdir -p ../TrollStore/Resources
-        cp .theos/obj/trollstorehelper ../TrollStore/Resources/
+        make DEBUG=0
         cd ..
         
-        # TrollStore
-        cd TrollStore
-        # 设置完整版本的编译参数
-        export HELPER_NAME=trollstorehelper
-        export TARGET=iphone:clang:16.5:14.0
-        export ARCHS=arm64
-        export TARGET_CODESIGN=../Exploits/fastPathSign/fastPathSign
-        
-        # 确保 libarchive 和其他依赖可用
-        export ADDITIONAL_CFLAGS="-I$(brew --prefix)/opt/libarchive/include"
-        export ADDITIONAL_LDFLAGS="-L$(brew --prefix)/opt/libarchive/lib"
-        
-        # 编译主程序
-        if ! make package FINALPACKAGE=1; then
-          echo "TrollStore 构建失败"
-          exit 1
-        fi
-        cd ..
-        
-        # TrollHelper (包含 PersistenceHelper)
+        # 2. 编译 TrollHelper (生成 PersistenceHelper)
         cd TrollHelper
-        if ! make package FINALPACKAGE=1; then
-          echo "TrollHelper 构建失败"
-          exit 1
-        fi
+        # 复制 trollstorehelper
+        mkdir -p Resources
+        cp ../RootHelper/.theos/obj/trollstorehelper Resources/
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        # 保存 PersistenceHelper
+        mkdir -p ../build
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../build/PersistenceHelper
         cd ..
         
-    # 创建最终的发布包
-    - name: Create TrollStore.tar
-      run: |
-        mkdir -p build
+        # 3. 编译 TrollStore
+        cd TrollStore
+        # 复制必要的组件
+        mkdir -p .theos/obj/TrollStore.app
+        cp ../RootHelper/.theos/obj/trollstorehelper .theos/obj/TrollStore.app/
+        cp ../build/PersistenceHelper .theos/obj/TrollStore.app/
+        make package FINALPACKAGE=1
+        cd ..
         
-        # 解压 deb 包并提取需要的文件
-        cd TrollStore/packages
-        for deb in *.deb; do
-          dpkg-deb -x "$deb" ../../build/
-        done
-        cd ../../
-        
-        cd TrollHelper/packages
-        for deb in *.deb; do
-          dpkg-deb -x "$deb" ../../build/
-        done
-        cd ../../
-        
-        # 收集所需文件
-        cd build
-        mkdir -p output
-        cp Applications/TrollStore.app/TrollStore output/
-        cp Applications/PersistenceHelper.app/PersistenceHelper output/
-        cp ../TrollStore/Resources/trollstorehelper output/
-        
-        # 创建最终的 tar
-        cd output
-        tar -cvf ../../packages/TrollStore.tar *
+        # 4. 创建最终的 tar 包
+        mkdir -p packages
+        tar -czvf packages/TrollStore.tar -C TrollStore/.theos/obj TrollStore.app
 
     # 上传构建产物
     - name: Upload artifact
