@@ -710,3 +710,75 @@ jobs:
           _build/PersistenceHelper_Embedded
           _build/PersistenceHelper_Embedded_Legacy_arm64
           _build/PersistenceHelper_Embedded_Legacy_arm64e 
+
+        # 创建工具函数头文件
+        cat > include/TSHelper.h << 'EOF'
+        #import <Foundation/Foundation.h>
+
+        NSString* trollStorePath(void);
+        NSString* trollStoreAppPath(void);
+        NSArray* trollStoreInstalledAppBundlePaths(void);
+        NSString* getNSStringFromFile(int fd);
+        
+        @interface LSApplicationProxy (TrollStore)
+        @property (nonatomic, readonly) BOOL installed;
+        @end
+        EOF
+        
+        # 创建工具函数实现
+        cat > include/TSHelper.m << 'EOF'
+        #import "TSHelper.h"
+        #import <unistd.h>
+
+        NSString* trollStorePath(void)
+        {
+            return @"/var/containers/Bundle/Application/TrollStore";
+        }
+
+        NSString* trollStoreAppPath(void)
+        {
+            return [trollStorePath() stringByAppendingPathComponent:@"TrollStore.app"];
+        }
+
+        NSArray* trollStoreInstalledAppBundlePaths(void)
+        {
+            NSString* appContainersPath = @"/var/containers/Bundle/Application";
+            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
+            NSMutableArray* trollStorePaths = [NSMutableArray new];
+            for(NSString* containerItem in containerItems)
+            {
+                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
+                [trollStorePaths addObject:fullPath];
+            }
+            return trollStorePaths.copy;
+        }
+
+        NSString* getNSStringFromFile(int fd)
+        {
+            NSMutableString* ms = [NSMutableString new];
+            ssize_t num_read;
+            char c;
+            while((num_read = read(fd, &c, sizeof(c))) > 0)
+            {
+                [ms appendString:[NSString stringWithFormat:@"%c",c]];
+            }
+            return ms.copy;
+        }
+
+        @implementation LSApplicationProxy (TrollStore)
+        - (BOOL)installed
+        {
+            return YES;
+        }
+        @end
+        EOF
+
+        # 修改 Makefile 添加新的源文件
+        cat >> Makefile << 'EOF'
+        trollstorehelper_FILES += include/TSHelper.m
+        EOF
+
+        # 修改 main.m 添加头文件引用
+        sed -i.bak '1i\
+        #import "TSHelper.h"\
+        ' main.m 
