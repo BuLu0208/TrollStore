@@ -502,6 +502,10 @@ jobs:
     # 创建工具函数头文件
     - name: Create helper files
       run: |
+        # 创建 include 目录
+        mkdir -p RootHelper/include
+        cd RootHelper
+        
         # 创建工具函数头文件
         cat > include/TSHelper.h << 'EOF'
         #import <Foundation/Foundation.h>
@@ -568,6 +572,8 @@ jobs:
         sed -i.bak '1i\
         #import "TSHelper.h"\
         ' main.m
+        
+        cd ..
 
     # 构建项目
     - name: Build project
