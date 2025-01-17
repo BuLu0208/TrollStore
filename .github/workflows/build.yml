@@ -236,34 +236,84 @@ jobs:
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
+        set -e  # 遇到错误立即退出
+        
+        # 安装 libarchive
+        brew install libarchive
+        
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 编译主程序
+        # 1. 编译 fastPathSign
+        cd Exploits/fastPathSign
+        make
+        cd ../..
+        
+        # 2. 编译 RootHelper (生成 trollstorehelper)
+        cd RootHelper
+        export TARGET=iphone:clang:16.5:14.0
+        export ARCHS=arm64
+        
+        # 创建 include 目录并复制必要的头文件
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        cp ../ChOma/src/*.c include/
+        
+        # 创建 Security 相关头文件
+        cat > include/TSSecurityHelper.h << 'EOF'
+        #import <Foundation/Foundation.h>
+        #import <Security/Security.h>
+
+        NS_ASSUME_NONNULL_BEGIN
+        // ... (TSSecurityHelper.h 的内容)
+        NS_ASSUME_NONNULL_END
+        EOF
+
+        # 创建实现文件
+        cat > include/TSSecurityHelper.m << 'EOF'
+        #import "TSSecurityHelper.h"
+        // ... (TSSecurityHelper.m 的内容)
+        EOF
+
+        # 修改 main.m 添加头文件引用
+        sed -i.bak '1i\
+        #import "TSSecurityHelper.h"\
+        ' main.m
+
+        # 修改 Makefile 添加新的源文件
+        cat >> Makefile << 'EOF'
+        trollstorehelper_FILES += include/TSSecurityHelper.m
+        EOF
+
+        make DEBUG=0
+        cd ..
+        
+        # 3. 编译 TrollStore
         cd TrollStore
-        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
-        make package FINALPACKAGE=1
+        make FINALPACKAGE=1
         cd ..
         
-        # 编译持续性助手
+        # 4. 编译 TrollHelper (生成 PersistenceHelper)
         cd TrollHelper
-        make package FINALPACKAGE=1
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
         cd ..
         
-    # 创建最终的发布包
-    - name: Create TrollStore.tar
-      run: |
-        # 收集所有组件的 deb 包
-        mkdir -p packages
-        cp TrollStore/packages/*.deb packages/
-        cp TrollHelper/packages/*.deb packages/
-        cd packages
-        tar -cvf TrollStore.tar *.deb 
+        # 5. 组装最终文件
+        mkdir -p _build
+        # 复制 trollstorehelper
+        cp RootHelper/.theos/obj/trollstorehelper _build/
+        # 复制 TrollStore
+        cp -r TrollStore/.theos/obj/TrollStore.app _build/
+        # 复制 PersistenceHelper
+        cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper _build/
 
     # 上传构建产物
-    - name: Upload artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: TrollStore
-        path: packages/TrollStore.tar 
+        name: TrollStore-Components
+        path: |
+          _build/trollstorehelper
+          _build/TrollStore.app
+          _build/TrollStorePersistenceHelper 
