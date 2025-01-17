@@ -476,6 +476,24 @@ jobs:
         @end
         EOF
 
+    # 检查构建环境
+    - name: Check build environment
+      run: |
+        # 设置 PATH
+        export PATH="/opt/homebrew/bin:$PATH"
+        
+        # 检查必要工具
+        echo "检查 ldid..."
+        which ldid || exit 1
+        echo "检查 make..."
+        which make || exit 1
+        
+        echo "检查 THEOS 环境..."
+        echo "THEOS=$THEOS"
+        ls -la $THEOS || echo "THEOS 目录不存在"
+      env:
+        THEOS: ${{ github.workspace }}/theos
+
     # 构建项目
     - name: Build project
       env:
@@ -529,15 +547,6 @@ jobs:
       with:
         name: TrollStore
         path: packages/TrollStore.tar 
-
-    # 检查构建环境
-    - name: Check build environment
-      run: |
-        # 检查必要工具
-        which ldid || exit 1
-        which make || exit 1
-        # 检查theos安装
-        test -d "$THEOS" || exit 1 
 
     # 验证构建产物
     - name: Verify build artifacts
