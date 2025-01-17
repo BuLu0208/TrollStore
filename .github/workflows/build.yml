@@ -48,10 +48,54 @@ jobs:
       run: |
         cd Exploits/fastPathSign
         cp ../../ChOma/src/*.h src/
-        # 修复文件引用和函数调用
-        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
-        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
-        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        cp ../../ChOma/src/*.c src/
+        
+        # 修复 FAT.h 引用
+        cat > src/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include "MachO.h"
+        
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
+        
+        typedef struct FAT_header {
+            uint32_t magic;
+            uint32_t nfat_arch;
+        } FAT_header;
+        
+        typedef struct FAT_arch {
+            uint32_t cputype;
+            uint32_t cpusubtype;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t align;
+        } FAT_arch;
+        
+        typedef struct FAT {
+            FAT_header header;
+            FAT_arch* archs;
+            MachO** machos;
+        } FAT;
+        
+        FAT* fat_init_from_path(const char* path);
+        MachO* fat_find_preferred_slice(FAT* fat);
+        MachO* fat_find_slice(FAT* fat, uint32_t cputype, uint32_t cpusubtype);
+        void fat_free(FAT* fat);
+        
+        #ifdef __cplusplus
+        }
+        #endif
+        EOF
+        
+        # 修复源文件中的引用
+        sed -i.bak 's/struct struct FAT/FAT/g' src/main.m
+        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' src/*.{h,m,c}
+        sed -i.bak 's/struct Fat/struct FAT/g' src/*.{h,m,c}
+        
+        # 编译
         make
         chmod +x fastPathSign
         cd ../..
@@ -552,10 +596,54 @@ jobs:
         # 1. 编译 fastPathSign
         cd Exploits/fastPathSign
         cp ../../ChOma/src/*.h src/
-        # 修复文件引用和函数调用
-        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
-        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
-        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        cp ../../ChOma/src/*.c src/
+        
+        # 修复 FAT.h 引用
+        cat > src/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include "MachO.h"
+        
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
+        
+        typedef struct FAT_header {
+            uint32_t magic;
+            uint32_t nfat_arch;
+        } FAT_header;
+        
+        typedef struct FAT_arch {
+            uint32_t cputype;
+            uint32_t cpusubtype;
+            uint32_t offset;
+            uint32_t size;
+            uint32_t align;
+        } FAT_arch;
+        
+        typedef struct FAT {
+            FAT_header header;
+            FAT_arch* archs;
+            MachO** machos;
+        } FAT;
+        
+        FAT* fat_init_from_path(const char* path);
+        MachO* fat_find_preferred_slice(FAT* fat);
+        MachO* fat_find_slice(FAT* fat, uint32_t cputype, uint32_t cpusubtype);
+        void fat_free(FAT* fat);
+        
+        #ifdef __cplusplus
+        }
+        #endif
+        EOF
+        
+        # 修复源文件中的引用
+        sed -i.bak 's/struct struct FAT/FAT/g' src/main.m
+        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' src/*.{h,m,c}
+        sed -i.bak 's/struct Fat/struct FAT/g' src/*.{h,m,c}
+        
+        # 编译
         make
         chmod +x fastPathSign
         cd ../..
