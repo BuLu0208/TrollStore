@@ -213,6 +213,8 @@ jobs:
         extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
         extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
         
+        #import <CoreTelephony/CTServerConnection.h>
+        
         // 声明为外部函数，实现放在 TSUtil.m 中
         void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion));
         void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion));
@@ -286,6 +288,30 @@ jobs:
         void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion))
         {
             completionHandler(nil);
+        }
+        
+        int dumpEntitlementsFromBinaryAtPath(NSString* binaryPath) {
+            return 0;
+        }
+        
+        NSString* getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary) {
+            return @"";
+        }
+        
+        void* getStaticCodeRef(NSString* binaryPath) {
+            return NULL;
+        }
+        
+        BOOL isRemovableSystemApp(NSString* bundleIdentifier) {
+            return NO;
+        }
+        
+        void chineseWifiFixup(void) {
+            CTServerConnectionRef connection = __CTServerConnectionCreate(kCFAllocatorDefault, NULL, NULL);
+            if (connection) {
+                __CTServerConnectionSetCellularUsagePolicy(connection, 0);
+                CFRelease(connection);
+            }
         }
         EOF
         
@@ -559,7 +585,55 @@ jobs:
         trollstorehelper_FILES += ../ChOma/src/Fat.c
         trollstorehelper_FILES += ../ChOma/src/MachO.c
         trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
-        trollstorehelper_FRAMEWORKS = Security Foundation
+        trollstorehelper_FILES += ../Shared/TSUtil.m
+        trollstorehelper_FILES += ../Shared/TSAppInfo.m
+        trollstorehelper_FILES += ../Shared/TSCommonTCCServiceNames.m
+        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony
+        
+        # 添加额外的编译标志
+        ADDITIONAL_CFLAGS += -DTROLLSTORE_ROOT_HELPER=1
+        ADDITIONAL_OBJCFLAGS += -DTROLLSTORE_ROOT_HELPER=1
+        EOF
+        
+        # 创建缺失的函数声明
+        cat > include/TSUtil.h << 'EOF'
+        #import <Foundation/Foundation.h>
+        
+        int dumpEntitlementsFromBinaryAtPath(NSString* binaryPath);
+        NSString* getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary);
+        void* getStaticCodeRef(NSString* binaryPath);
+        BOOL isRemovableSystemApp(NSString* bundleIdentifier);
+        void chineseWifiFixup(void);
+        EOF
+        
+        # 创建函数实现
+        cat > include/TSUtil.m << 'EOF'
+        #import "TSUtil.h"
+        #import <CoreTelephony/CTServerConnection.h>
+        
+        int dumpEntitlementsFromBinaryAtPath(NSString* binaryPath) {
+            return 0;
+        }
+        
+        NSString* getDeclaredExploitTypeFromInfoDictionary(NSDictionary* infoDictionary) {
+            return @"";
+        }
+        
+        void* getStaticCodeRef(NSString* binaryPath) {
+            return NULL;
+        }
+        
+        BOOL isRemovableSystemApp(NSString* bundleIdentifier) {
+            return NO;
+        }
+        
+        void chineseWifiFixup(void) {
+            CTServerConnectionRef connection = __CTServerConnectionCreate(kCFAllocatorDefault, NULL, NULL);
+            if (connection) {
+                __CTServerConnectionSetCellularUsagePolicy(connection, 0);
+                CFRelease(connection);
+            }
+        }
         EOF
         
         make DEBUG=0
