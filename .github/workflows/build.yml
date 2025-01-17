@@ -505,8 +505,10 @@ jobs:
         export PATH="/opt/homebrew/bin:$PATH"
         export PATH="$THEOS/bin:$PATH"
         
-        # 编译 RootHelper (生成 PersistenceHelper_Embedded)
+        # 编译 RootHelper (生成 trollstorehelper)
         cd RootHelper
+        export TARGET=iphone:clang:16.5:14.0
+        export ARCHS=arm64
         make
         mkdir -p ../TrollStore/Resources
         cp .theos/obj/trollstorehelper ../TrollStore/Resources/
@@ -542,12 +544,31 @@ jobs:
     # 创建最终的发布包
     - name: Create TrollStore.tar
       run: |
-        # 收集所有组件的 deb 包
-        mkdir -p packages
-        cp TrollStore/packages/*.deb packages/
-        cp TrollHelper/packages/*.deb packages/
-        cd packages
-        tar -cvf TrollStore.tar *.deb 
+        mkdir -p build
+        
+        # 解压 deb 包并提取需要的文件
+        cd TrollStore/packages
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" ../../build/
+        done
+        cd ../../
+        
+        cd TrollHelper/packages
+        for deb in *.deb; do
+          dpkg-deb -x "$deb" ../../build/
+        done
+        cd ../../
+        
+        # 收集所需文件
+        cd build
+        mkdir -p output
+        cp Applications/TrollStore.app/TrollStore output/
+        cp Applications/PersistenceHelper.app/PersistenceHelper output/
+        cp ../TrollStore/Resources/trollstorehelper output/
+        
+        # 创建最终的 tar
+        cd output
+        tar -cvf ../../packages/TrollStore.tar *
 
     # 上传构建产物
     - name: Upload artifact
