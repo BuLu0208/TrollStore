@@ -787,3 +787,67 @@ jobs:
           _build/PersistenceHelper_Embedded
           _build/PersistenceHelper_Embedded_Legacy_arm64
           _build/PersistenceHelper_Embedded_Legacy_arm64e 
+
+    # 创建 Security 相关头文件
+    - name: Create Security helper files
+      run: |
+        # 创建 include 目录
+        mkdir -p RootHelper/include
+        cd RootHelper
+        
+        # 创建 Security 相关头文件
+        cat > include/TSSecurityHelper.h << 'EOF'
+        #import <Foundation/Foundation.h>
+        #import <Security/Security.h>
+
+        // Security framework constants
+        extern const CFStringRef kSecCSSigningInformation;
+        extern const CFStringRef kSecCodeInfoCertificates;
+        extern const CFStringRef kSecPolicyAppleiPhoneApplicationSigning;
+        extern const CFStringRef kSecPolicyAppleiPhoneProfileApplicationSigning;
+
+        // Security framework types
+        typedef struct CF_BRIDGED_TYPE(id) __SecCode const* SecStaticCodeRef;
+
+        // Security framework functions
+        CFDataRef SecCertificateCopyExtensionValue(SecCertificateRef certificate, CFStringRef oidString, bool* critical);
+        OSStatus SecCodeCopySigningInformation(SecStaticCodeRef code, SecCSFlags flags, CFDictionaryRef* __nonnull CF_RETURNS_RETAINED information);
+        OSStatus SecPolicySetOptionsValue(SecPolicyRef policy, CFStringRef key, CFTypeRef value);
+
+        // Exploit types
+        typedef NS_OPTIONS(uint32_t, EXPLOIT_TYPE) {
+            EXPLOIT_TYPE_NONE = 0,
+            EXPLOIT_TYPE_CUSTOM_ROOT_CERTIFICATE_V1 = 1 << 0,
+            EXPLOIT_TYPE_CMS_SIGNERINFO_V1 = 1 << 1,
+        };
+
+        // Helper functions
+        void printMultilineNSString(NSString* string);
+        bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType);
+        EOF
+
+        # 创建实现文件
+        cat > include/TSSecurityHelper.m << 'EOF'
+        #import "TSSecurityHelper.h"
+
+        void printMultilineNSString(NSString* string) {
+            NSArray* lines = [string componentsSeparatedByString:@"\n"];
+            for(NSString* line in lines) {
+                NSLog(@"%@", line);
+            }
+        }
+
+        bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType) {
+            return (exploitType & EXPLOIT_TYPE_CMS_SIGNERINFO_V1) != 0;
+        }
+        EOF
+
+        # 修改 main.m 添加头文件引用
+        sed -i.bak '1i\
+        #import "TSSecurityHelper.h"\
+        ' main.m
+
+        # 修改 Makefile 添加新的源文件
+        cat >> Makefile << 'EOF'
+        trollstorehelper_FILES += include/TSSecurityHelper.m
+        EOF 
