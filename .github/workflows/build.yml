@@ -258,13 +258,19 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
+        # 修改 main.m 添加头文件引用
+        sed -i.bak '1i\
+        #import "FAT.h"\
+        ' main.m
+        
         # 修改 Makefile 添加源文件和包含路径
         cat >> Makefile << 'EOF'
         trollstorehelper_FILES += ../ChOma/src/FAT.c
         trollstorehelper_FILES += ../ChOma/src/MachO.c
         trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
-        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src
-        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src
+        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
+        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
+        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony MobileCoreServices
         EOF
         
         make package FINALPACKAGE=1
@@ -273,7 +279,7 @@ jobs:
         # 5. 组装最终文件
         mkdir -p _build
         # 复制 trollstorehelper
-        cp RootHelper/.theos/obj/trollstorehelper.app _build/
+        cp RootHelper/.theos/obj/trollstorehelper _build/
         # 复制 TrollStore
         cp -r TrollStore/.theos/obj/TrollStore.app _build/
         # 复制 PersistenceHelper
