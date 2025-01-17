@@ -497,7 +497,17 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 修复 FAT 相关的文件和引用
+        # 修复 Host.h 中的类型定义
+        cat > include/Host.h << 'EOF'
+        #pragma once
+        #include <mach/machine.h>
+        #include "FAT.h"
+        
+        int host_get_cpu_information(cpu_type_t* cputype, cpu_subtype_t* cpusubtype);
+        MachO* fat_find_preferred_slice(FAT* fat);
+        EOF
+        
+        # 创建 FAT.h
         cat > include/FAT.h << 'EOF'
         #pragma once
         #include <stdio.h>
