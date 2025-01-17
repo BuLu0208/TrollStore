@@ -313,11 +313,11 @@ jobs:
         trollstorehelper_FILES += ../ChOma/src/FAT.c
         trollstorehelper_FILES += ../ChOma/src/MachO.c
         trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
+        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
+        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
         trollstorehelper_LIBRARIES = archive
-        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1 -I/opt/homebrew/opt/libarchive/include
-        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1 -I/opt/homebrew/opt/libarchive/include
-        ADDITIONAL_LDFLAGS += -L/opt/homebrew/opt/libarchive/lib
         trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony MobileCoreServices
+        ADDITIONAL_LDFLAGS = -Wl,-rpath,/usr/lib
         EOF
         
         make package FINALPACKAGE=1
