@@ -517,6 +517,14 @@ jobs:
         export ADDITIONAL_CFLAGS="-I$(brew --prefix)/opt/libarchive/include"
         export ADDITIONAL_LDFLAGS="-L$(brew --prefix)/opt/libarchive/lib"
         
+        # 创建 Resources 目录
+        mkdir -p Resources
+        
+        # 编译 PersistenceHelper
+        make PersistenceHelper
+        cp .theos/obj/PersistenceHelper Resources/trollstorehelper
+        
+        # 编译主程序
         if ! make package FINALPACKAGE=1; then
           echo "TrollStore 构建失败"
           exit 1
