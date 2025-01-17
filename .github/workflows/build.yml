@@ -50,7 +50,34 @@ jobs:
         cp ../../ChOma/src/*.h src/
         cp ../../ChOma/src/*.c src/
         
-        # 修复 FAT.h 引用
+        # 修复 MachO.h 和 FAT.h 的循环依赖
+        cat > src/MachO.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include "MemoryStream.h"
+        
+        struct FAT;  // 前向声明
+        
+        typedef struct MachO {
+            MemoryStream* stream;
+            uint32_t magic;
+            uint32_t cputype;
+            uint32_t cpusubtype;
+            uint32_t filetype;
+            uint32_t ncmds;
+            uint32_t sizeofcmds;
+            uint32_t flags;
+            uint32_t reserved;
+            void* loadCommands;
+            struct FAT* underlyingMachO;
+        } MachO;
+        
+        MachO* macho_init(MemoryStream* stream, bool is64Bit);
+        void macho_free(MachO* macho);
+        EOF
+        
+        # 创建 FAT.h
         cat > src/FAT.h << 'EOF'
         #pragma once
         #include <stdio.h>
@@ -78,11 +105,17 @@ jobs:
             FAT_header header;
             FAT_arch* archs;
             MachO** machos;
+            MemoryStream* stream;
+            size_t slicesCount;
+            MachO** slices;
         } FAT;
         
         FAT* fat_init_from_path(const char* path);
+        FAT* fat_init_from_memory_stream(MemoryStream* stream);
+        FAT* fat_dsc_init_from_memory_stream(MemoryStream* stream, void* sharedCache, void* image);
         MachO* fat_find_preferred_slice(FAT* fat);
         MachO* fat_find_slice(FAT* fat, uint32_t cputype, uint32_t cpusubtype);
+        MachO* fat_get_single_slice(FAT* fat);
         void fat_free(FAT* fat);
         
         #ifdef __cplusplus
@@ -90,10 +123,11 @@ jobs:
         #endif
         EOF
         
-        # 修复源文件中的引用
-        sed -i.bak 's/struct struct FAT/FAT/g' src/main.m
-        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' src/*.{h,m,c}
-        sed -i.bak 's/struct Fat/struct FAT/g' src/*.{h,m,c}
+        # 修复 coretrust_bug.c 中的函数调用
+        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        
+        # 添加 PAGE_MASK 定义
+        echo "#define PAGE_MASK 0xFFF" >> src/DyldSharedCache.c
         
         # 编译
         make
@@ -598,7 +632,34 @@ jobs:
         cp ../../ChOma/src/*.h src/
         cp ../../ChOma/src/*.c src/
         
-        # 修复 FAT.h 引用
+        # 修复 MachO.h 和 FAT.h 的循环依赖
+        cat > src/MachO.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include "MemoryStream.h"
+        
+        struct FAT;  // 前向声明
+        
+        typedef struct MachO {
+            MemoryStream* stream;
+            uint32_t magic;
+            uint32_t cputype;
+            uint32_t cpusubtype;
+            uint32_t filetype;
+            uint32_t ncmds;
+            uint32_t sizeofcmds;
+            uint32_t flags;
+            uint32_t reserved;
+            void* loadCommands;
+            struct FAT* underlyingMachO;
+        } MachO;
+        
+        MachO* macho_init(MemoryStream* stream, bool is64Bit);
+        void macho_free(MachO* macho);
+        EOF
+        
+        # 创建 FAT.h
         cat > src/FAT.h << 'EOF'
         #pragma once
         #include <stdio.h>
@@ -626,11 +687,17 @@ jobs:
             FAT_header header;
             FAT_arch* archs;
             MachO** machos;
+            MemoryStream* stream;
+            size_t slicesCount;
+            MachO** slices;
         } FAT;
         
         FAT* fat_init_from_path(const char* path);
+        FAT* fat_init_from_memory_stream(MemoryStream* stream);
+        FAT* fat_dsc_init_from_memory_stream(MemoryStream* stream, void* sharedCache, void* image);
         MachO* fat_find_preferred_slice(FAT* fat);
         MachO* fat_find_slice(FAT* fat, uint32_t cputype, uint32_t cpusubtype);
+        MachO* fat_get_single_slice(FAT* fat);
         void fat_free(FAT* fat);
         
         #ifdef __cplusplus
@@ -638,10 +705,11 @@ jobs:
         #endif
         EOF
         
-        # 修复源文件中的引用
-        sed -i.bak 's/struct struct FAT/FAT/g' src/main.m
-        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' src/*.{h,m,c}
-        sed -i.bak 's/struct Fat/struct FAT/g' src/*.{h,m,c}
+        # 修复 coretrust_bug.c 中的函数调用
+        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        
+        # 添加 PAGE_MASK 定义
+        echo "#define PAGE_MASK 0xFFF" >> src/DyldSharedCache.c
         
         # 编译
         make
