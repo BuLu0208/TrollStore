@@ -638,17 +638,34 @@ jobs:
         cat > include/LSApplicationProxy.h << 'EOF'
         #import <Foundation/Foundation.h>
 
+        @class LSApplicationProxy;
+        @class LSEnumerator;
+
         @interface LSApplicationProxy : NSObject
         @property (nonatomic, readonly) NSString* bundleIdentifier;
         @property (nonatomic, readonly) NSURL* bundleURL;
         @property (nonatomic, readonly) NSArray* claimedURLSchemes;
+        @property (nonatomic, readonly) NSDictionary* groupContainerURLs;
+        + (instancetype)applicationProxyForIdentifier:(NSString*)identifier;
         @end
 
         @interface LSEnumerator : NSEnumerator
         @property (nonatomic, copy) NSPredicate* predicate;
         + (instancetype)enumeratorForApplicationProxiesWithOptions:(NSUInteger)options;
         @end
+
+        @interface LSApplicationWorkspace : NSObject
+        + (instancetype)defaultWorkspace;
+        - (BOOL)openApplicationWithBundleID:(NSString*)bundleID;
+        - (NSArray<LSApplicationProxy*>*)allInstalledApplications;
+        - (void)enumerateApplicationsOfType:(NSUInteger)type block:(void (^)(LSApplicationProxy*))block;
+        @end
         EOF
+        
+        # 修改 main.m 添加头文件引用
+        sed -i.bak '1i\
+        #import "LSApplicationProxy.h"\
+        ' main.m
         
         make DEBUG=0
         cd ..
