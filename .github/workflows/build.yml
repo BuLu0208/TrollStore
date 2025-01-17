@@ -509,6 +509,21 @@ jobs:
         cd RootHelper
         export TARGET=iphone:clang:16.5:14.0
         export ARCHS=arm64
+        
+        # 复制 ChOma 的头文件
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        
+        # 修复 FAT.h 引用
+        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' include/*.h include/*.m
+        if [ -f include/Fat.h ]; then
+          mv include/Fat.h include/FAT.h
+        fi
+        
+        # 添加 ChOma 源文件到编译
+        export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
+        export ADDITIONAL_OBJCFLAGS="-I./include -I../ChOma/src"
+        
         make
         mkdir -p ../TrollStore/Resources
         cp .theos/obj/trollstorehelper ../TrollStore/Resources/
