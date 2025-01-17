@@ -515,13 +515,7 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 修复 FAT.h 引用
-        sed -i.bak 's/"Fat\.h"/"FAT.h"/g' include/*.h
-        if [ -f include/Fat.h ]; then
-          mv include/Fat.h include/FAT.h
-        fi
-        
-        # 修复 FAT 结构体定义
+        # 修复 FAT.h 引用和类型定义
         cat > include/FAT.h << 'EOF'
         #pragma once
         #include <stdio.h>
@@ -547,10 +541,15 @@ jobs:
             MachO** machos;
         } FAT;
         
+        typedef FAT Fat;  // 兼容性别名
+        
         FAT* fat_init_from_path(const char* path);
         MachO* fat_find_preferred_slice(FAT* fat);
         void fat_free(FAT* fat);
         EOF
+        
+        # 修复 Host.h 中的引用
+        sed -i.bak 's/Fat \*/FAT \*/g' include/Host.h
         
         # 添加 ChOma 源文件到编译
         export ADDITIONAL_CFLAGS="-I./include -I../ChOma/src"
