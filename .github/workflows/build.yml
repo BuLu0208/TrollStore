@@ -483,6 +483,10 @@ jobs:
       run: |
         set -e  # 遇到错误立即退出
         
+        # 设置 PATH 以包含 Homebrew 路径
+        export PATH="/opt/homebrew/bin:$PATH"
+        export PATH="$THEOS/bin:$PATH"
+        
         # TrollStore (包含 PersistenceHelper_Embedded)
         cd TrollStore
         # 设置完整版本的编译参数
