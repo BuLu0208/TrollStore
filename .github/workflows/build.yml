@@ -271,6 +271,66 @@ jobs:
         # 编译持续性助手
         cd TrollHelper
         
+        # 替换 unarchive.m 文件，使用 tar 命令而不是 libarchive
+        cat > ../RootHelper/unarchive.m << 'EOF'
+        #import <Foundation/Foundation.h>
+        #import <spawn.h>
+        #import <sys/wait.h>
+        
+        int extract(const char* archive_path, const char* extract_path) {
+            @autoreleasepool {
+                NSString* archivePath = [NSString stringWithUTF8String:archive_path];
+                NSString* extractPath = [NSString stringWithUTF8String:extract_path];
+                
+                NSFileManager* fm = [NSFileManager defaultManager];
+                NSError* error = nil;
+                
+                if (![fm createDirectoryAtPath:extractPath 
+                    withIntermediateDirectories:YES 
+                    attributes:nil 
+                    error:&error]) {
+                    NSLog(@"Failed to create directory: %@", error);
+                    return -1;
+                }
+                
+                if (![fm fileExistsAtPath:archivePath]) {
+                    NSLog(@"Archive file does not exist");
+                    return -1;
+                }
+                
+                pid_t pid;
+                const char* args[] = {
+                    "/usr/bin/tar",
+                    "-xf",              // 解压文件
+                    [archivePath UTF8String],
+                    "-C",              // 指定目标目录
+                    [extractPath UTF8String],
+                    "--strip-components=0",  // 保留目录结构
+                    "--preserve-permissions", // 保留权限
+                    "--no-same-owner",       // 不保留所有者信息
+                    "--warning=no-unknown-keyword", // 忽略未知关键字警告
+                    NULL
+                };
+                
+                extern char** environ;
+                int status = posix_spawn(&pid, args[0], NULL, NULL, (char* const*)args, environ);
+                if (status != 0) {
+                    NSLog(@"posix_spawn failed: %s", strerror(status));
+                    return -1;
+                }
+                
+                if (waitpid(pid, &status, 0) != -1) {
+                    return WEXITSTATUS(status);
+                }
+                
+                return -1;
+            }
+        }
+        EOF
+        
+        # 从 Makefile 中移除 libarchive 依赖
+        sed -i.bak 's/TrollStorePersistenceHelper_LIBRARIES += archive//' Makefile
+        
         # 修改所有版本的更新 URL
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
@@ -405,12 +465,26 @@ jobs:
     # 上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
+      if: always()  # 即使前面步骤失败也执行
       with:
         name: TrollStore-Components
         path: |
-          _build/trollstorehelper
-          _build/TrollStore.app
-          _build/TrollStorePersistenceHelper
-          _build/PersistenceHelper_Embedded
-          _build/PersistenceHelper_Embedded_Legacy_arm64
-          _build/PersistenceHelper_Embedded_Legacy_arm64e 
+          ${{ runner.temp }}/upload/*
+
+    # 在上传前准备文件
+    - name: Prepare artifacts
+      if: always()
+      run: |
+        mkdir -p ${{ runner.temp }}/upload
+        
+        # 检查每个文件是否存在并复制到上传目录
+        for file in trollstorehelper TrollStore.app TrollStorePersistenceHelper PersistenceHelper_Embedded PersistenceHelper_Embedded_Legacy_arm64 PersistenceHelper_Embedded_Legacy_arm64e; do
+          if [ -e "_build/$file" ]; then
+            # 如果是成功编译的文件，使用原始路径
+            cp -r "_build/$file" "${{ runner.temp }}/upload/"
+          elif [ -e "_build/*" ]; then
+            # 如果有其他编译成功的文件，也复制
+            cp -r "_build/"* "${{ runner.temp }}/upload/"
+            break
+          fi
+        done 
