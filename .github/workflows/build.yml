@@ -258,9 +258,11 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
-        # 替换 unarchive.m 文件，使用系统命令代替 NSTask
+        # 替换 unarchive.m 文件，使用 posix_spawn 代替 system
         cat > unarchive.m << 'EOF'
         #import <Foundation/Foundation.h>
+        #import <spawn.h>
+        #import <sys/wait.h>
         
         int extract_archive(const char* archive_path, const char* extract_path) {
             @autoreleasepool {
@@ -285,13 +287,30 @@ jobs:
                     return -1;
                 }
                 
-                // 使用系统命令解压
-                NSString* command = [NSString stringWithFormat:@"/usr/bin/tar -xf '%@' -C '%@'", 
-                    [archivePath stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"],
-                    [extractPath stringByReplacingOccurrencesOfString:@"'" withString:@"'\\''"]];
+                // 使用 posix_spawn 执行 tar 命令
+                pid_t pid;
+                const char* args[] = {
+                    "/usr/bin/tar",
+                    "-xf",
+                    [archivePath UTF8String],
+                    "-C",
+                    [extractPath UTF8String],
+                    NULL
+                };
                 
-                int status = system([command UTF8String]);
-                return WEXITSTATUS(status);
+                extern char** environ;
+                int status = posix_spawn(&pid, args[0], NULL, NULL, (char* const*)args, environ);
+                if (status != 0) {
+                    NSLog(@"posix_spawn failed: %s", strerror(status));
+                    return -1;
+                }
+                
+                // 等待子进程结束
+                if (waitpid(pid, &status, 0) != -1) {
+                    return WEXITSTATUS(status);
+                }
+                
+                return -1;
             }
         }
         EOF
