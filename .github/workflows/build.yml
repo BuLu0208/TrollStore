@@ -409,13 +409,36 @@ jobs:
         # 编译 trollstorehelper
         cd RootHelper
         
-        # 创建 include 目录
+        # 创建 include 目录并复制所有源文件
         mkdir -p include
-        cp ../ChOma/src/*.h include/
+        cp -r ../ChOma/src/* include/
+        cp -r ../ChOma/src/* .
         
         # 修改 main.m 中的 FAT 相关代码
         sed -i.bak 's/FAT \*fat/Fat \*fat/g' main.m
         sed -i.bak 's/struct FAT \*fat/Fat \*fat/g' main.m
+        sed -i.bak 's/struct Fat \*fat/Fat \*fat/g' main.m
+        
+        # 确保所有 FAT 相关的源文件都被包含
+        cat >> Makefile << 'EOF'
+        $(HELPER_NAME)_FILES += FAT.c
+        $(HELPER_NAME)_FILES += MachO.c
+        $(HELPER_NAME)_FILES += MemoryStream.c
+        $(HELPER_NAME)_FILES += Base64.c
+        $(HELPER_NAME)_FILES += BufferedStream.c
+        $(HELPER_NAME)_FILES += CSBlob.c
+        $(HELPER_NAME)_FILES += CodeDirectory.c
+        $(HELPER_NAME)_FILES += DER.c
+        $(HELPER_NAME)_FILES += DyldSharedCache.c
+        $(HELPER_NAME)_FILES += Entitlements.c
+        $(HELPER_NAME)_FILES += FileStream.c
+        $(HELPER_NAME)_FILES += Host.c
+        $(HELPER_NAME)_FILES += MachOLoadCommand.c
+        $(HELPER_NAME)_FILES += PatchFinder.c
+        $(HELPER_NAME)_FILES += PatchFinder_arm64.c
+        $(HELPER_NAME)_FILES += Util.c
+        $(HELPER_NAME)_FILES += arm64.c
+        EOF
         
         # 确保 FAT.h 中的定义正确
         cat > include/FAT.h << 'EOF'
