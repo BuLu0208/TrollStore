@@ -253,7 +253,7 @@ jobs:
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
         
-        # 替换 unarchive.m 文件
+        # 替换 unarchive.m 文件，使用优化的 tar 命令
         cat > ../RootHelper/unarchive.m << 'EOF'
         #import <Foundation/Foundation.h>
         #import <spawn.h>
@@ -282,14 +282,18 @@ jobs:
                     return -1;
                 }
                 
-                // 使用 posix_spawn 执行 tar 命令
+                // 使用优化的 tar 命令
                 pid_t pid;
                 const char* args[] = {
                     "/usr/bin/tar",
-                    "-xf",
+                    "-xf",              // 解压文件
                     [archivePath UTF8String],
-                    "-C",
+                    "-C",              // 指定目标目录
                     [extractPath UTF8String],
+                    "--strip-components=0",  // 保留目录结构
+                    "--preserve-permissions", // 保留权限
+                    "--no-same-owner",       // 不保留所有者信息
+                    "--warning=no-unknown-keyword", // 忽略未知关键字警告
                     NULL
                 };
                 
