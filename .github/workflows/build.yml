@@ -248,42 +248,13 @@ jobs:
         
         # 编译持续性助手
         cd TrollHelper
-        make package FINALPACKAGE=1
         
-        # 编译三个嵌入式版本的 PersistenceHelper
-        mkdir -p ../_build
-        
-        # 1. 标准版本
-        make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
-        
-        # 2. Legacy arm64 版本
-        make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
-        
-        # 3. arm64e 版本
-        make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
-        make clean
-        cd ..
-        
-        # 编译 trollstorehelper
-        cd RootHelper
-        # 创建 include 目录并复制必要的头文件
-        mkdir -p include
-        cp ../ChOma/src/*.h include/
-        cp ../ChOma/src/*.c include/
-        
-        # 替换 unarchive.m 文件，使用 posix_spawn 代替 system
-        cat > unarchive.m << 'EOF'
+        # 替换 unarchive.m 文件，使用 posix_spawn 代替 libarchive
+        cat > ../RootHelper/unarchive.m << 'EOF'
         #import <Foundation/Foundation.h>
         #import <spawn.h>
         #import <sys/wait.h>
         
-        // 重命名函数为 extract 以匹配调用
         int extract(const char* archive_path, const char* extract_path) {
             @autoreleasepool {
                 NSString* archivePath = [NSString stringWithUTF8String:archive_path];
@@ -334,6 +305,35 @@ jobs:
             }
         }
         EOF
+        
+        make package FINALPACKAGE=1
+        
+        # 编译三个嵌入式版本的 PersistenceHelper
+        mkdir -p ../_build
+        
+        # 1. 标准版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
+        
+        # 2. Legacy arm64 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
+        
+        # 3. arm64e 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
+        make clean
+        cd ..
+        
+        # 编译 trollstorehelper
+        cd RootHelper
+        # 创建 include 目录并复制必要的头文件
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        cp ../ChOma/src/*.c include/
         
         # 修改类型定义，确保一致性
         cat > include/FAT.h << 'EOF'
