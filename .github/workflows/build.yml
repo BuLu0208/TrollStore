@@ -88,6 +88,18 @@ jobs:
         
         mkdir -p _build
         
+    # 设置 ChOma 签名工具
+    - name: Setup ChOma
+      run: |
+        git clone https://github.com/opa334/ChOma.git
+        cd ChOma/src
+        # 修复文件名大小写问题
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/struct fat_header/struct FAT_header/g' FAT.h
+        sed -i.bak 's/typedef struct fat_header FAT_header/typedef struct FAT_header FAT_header/g' FAT.h
+        sed -i.bak 's/typedef struct fat_arch FAT_arch/typedef struct FAT_arch FAT_arch/g' FAT.h
+        mv Fat.h FAT.h
+        
         # 修改更新 URL
         LC_ALL=C sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
         LC_ALL=C sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
