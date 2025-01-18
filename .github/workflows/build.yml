@@ -249,9 +249,28 @@ jobs:
         # 编译持续性助手
         cd TrollHelper
         make package FINALPACKAGE=1
+        
+        # 编译三个嵌入式版本的 PersistenceHelper
+        mkdir -p ../_build
+        
+        # 1. 标准版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
+        
+        # 2. Legacy arm64 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
+        
+        # 3. arm64e 版本
+        make clean
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
+        make clean
         cd ..
-
-        # 编译trollstorehelper
+        
+        # 编译 trollstorehelper
         cd RootHelper
         # 创建 include 目录并复制必要的头文件
         mkdir -p include
@@ -390,4 +409,7 @@ jobs:
         path: |
           _build/trollstorehelper
           _build/TrollStore.app
-          _build/TrollStorePersistenceHelper 
+          _build/TrollStorePersistenceHelper
+          _build/PersistenceHelper_Embedded
+          _build/PersistenceHelper_Embedded_Legacy_arm64
+          _build/PersistenceHelper_Embedded_Legacy_arm64e 
