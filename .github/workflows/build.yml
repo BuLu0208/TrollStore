@@ -264,7 +264,8 @@ jobs:
         #import <spawn.h>
         #import <sys/wait.h>
         
-        int extract_archive(const char* archive_path, const char* extract_path) {
+        // 重命名函数为 extract 以匹配调用
+        int extract(const char* archive_path, const char* extract_path) {
             @autoreleasepool {
                 NSString* archivePath = [NSString stringWithUTF8String:archive_path];
                 NSString* extractPath = [NSString stringWithUTF8String:extract_path];
