@@ -236,42 +236,52 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 编译主程序
-        cd TrollStore
+        # 首先创建所有需要的文件和目录
+        mkdir -p _build
         
-        # 创建 Makefile
-        cat > Makefile << 'EOF'
-        TARGET := iphone:clang:16.5:14.0
-        INSTALL_TARGET_PROCESSES = TrollStore
-        ARCHS = arm64
+        # 1. 准备 RootHelper 相关文件
+        cd RootHelper
+        mkdir -p include
+        cp -r ../ChOma/src/* include/
+        cp -r ../ChOma/src/* .
         
-        TARGET_CODESIGN = ../Exploits/fastPathSign/fastPathSign
+        # 创建 FAT.h
+        cat > include/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include <mach/machine.h>
+        #include "MachO.h"
+        #include "MemoryStream.h"
         
-        include $(THEOS)/makefiles/common.mk
+        typedef struct Fat {
+            uint32_t magic;
+            uint32_t nfat_arch;
+            struct fat_arch* archs;
+            MemoryStream* stream;
+        } Fat;
         
-        APPLICATION_NAME = TrollStore
-        
-        TrollStore_FILES = $(wildcard *.m) $(wildcard ../Shared/*.m)
-        TrollStore_FRAMEWORKS = UIKit CoreGraphics CoreServices CoreTelephony
-        TrollStore_PRIVATE_FRAMEWORKS = Preferences MobileIcons MobileContainerManager
-        TrollStore_LIBRARIES = archive
-        TrollStore_CFLAGS = -fobjc-arc -I../Shared -I$(shell brew --prefix)/opt/libarchive/include
-        TrollStore_CODESIGN_FLAGS = --entitlements entitlements.plist
-        
-        include $(THEOS_MAKE_PATH)/application.mk
+        Fat* fat_init_from_path(const char* path);
+        Fat* fat_init_from_memory_stream(MemoryStream* stream);
+        MachO* fat_find_preferred_slice(Fat* fat);
+        MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
+        void fat_free(Fat* fat);
         EOF
         
-        # 移除 libarchive 依赖
-        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
-        
-        make package FINALPACKAGE=1
-        cp -r .theos/obj/TrollStore.app ../_build/
+        # 修改 main.m
+        sed -i.bak 's/FAT \*fat/Fat \*fat/g' main.m
+        sed -i.bak 's/struct FAT \*fat/Fat \*fat/g' main.m
+        sed -i.bak 's/struct Fat \*fat/Fat \*fat/g' main.m
+        sed -i.bak '1i\
+        #import "FAT.h"\
+        #import "MachO.h"\
+        #import "MemoryStream.h"\
+        ' main.m
         cd ..
         
-        # 编译持续性助手
+        # 2. 准备 TrollHelper 相关文件
         cd TrollHelper
-        
-        # 替换 unarchive.m 文件，使用 tar 命令而不是 libarchive
+        # 替换 unarchive.m 文件
         cat > ../RootHelper/unarchive.m << 'EOF'
         #import <Foundation/Foundation.h>
         #import <spawn.h>
@@ -327,201 +337,62 @@ jobs:
             }
         }
         EOF
+        cd ..
         
-        # 从 Makefile 中移除 libarchive 依赖
-        sed -i.bak 's/TrollStorePersistenceHelper_LIBRARIES += archive//' Makefile
-        
-        # 修改所有版本的更新 URL
+        # 3. 修改所有版本的更新 URL
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
         
-        # 修改 RootHelper 中的 URL
-        find ../RootHelper -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
-        find ../RootHelper -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
+        # 开始编译各个组件
+        # 编译主程序
+        cd TrollStore
+        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
+        make package FINALPACKAGE=1 || true
+        [ -d ".theos/obj/TrollStore.app" ] && cp -r .theos/obj/TrollStore.app ../_build/
+        cd ..
         
-        # 修改 Shared 目录中的 URL
-        find ../Shared -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
-        find ../Shared -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
-        
-        # 创建 Makefile
-        cat > Makefile << 'EOF'
-        export EMBEDDED_ROOT_HELPER ?= 0
-        export LEGACY_CT_BUG ?= 0
-        
-        TARGET := iphone:clang:16.5:14.0
-        INSTALL_TARGET_PROCESSES = TrollStorePersistenceHelper
-        
-        ifdef CUSTOM_ARCHS
-        ARCHS = $(CUSTOM_ARCHS)
-        else
-        ARCHS = arm64
-        endif
-        
-        ifneq ($(LEGACY_CT_BUG),1)
-        TARGET_CODESIGN = ../Exploits/fastPathSign/fastPathSign
-        endif
-        
-        include $(THEOS)/makefiles/common.mk
-        
-        APPLICATION_NAME = TrollStorePersistenceHelper
-        
-        TrollStorePersistenceHelper_FILES = $(wildcard *.m) $(wildcard ../Shared/*.m)
-        TrollStorePersistenceHelper_FRAMEWORKS = UIKit CoreGraphics CoreServices CoreTelephony
-        TrollStorePersistenceHelper_PRIVATE_FRAMEWORKS = Preferences MobileContainerManager
-        TrollStorePersistenceHelper_CFLAGS = -fobjc-arc -I../Shared -I$(shell brew --prefix)/opt/libarchive/include
-        
-        ifeq ($(LEGACY_CT_BUG),1)
-        TrollStorePersistenceHelper_CODESIGN_FLAGS = -Sentitlements.plist -K../legacy.p12
-        TrollStorePersistenceHelper_CFLAGS += -DLEGACY_CT_BUG=1
-        else
-        TrollStorePersistenceHelper_CODESIGN_FLAGS = --entitlements entitlements.plist
-        endif
-        
-        ifeq ($(EMBEDDED_ROOT_HELPER),1)
-        TrollStorePersistenceHelper_CFLAGS += -DEMBEDDED_ROOT_HELPER=1
-        TrollStorePersistenceHelper_FILES += $(wildcard ../RootHelper/*.m)
-        TrollStorePersistenceHelper_LIBRARIES += archive
-        TrollStorePersistenceHelper_PRIVATE_FRAMEWORKS += SpringBoardServices BackBoardServices FrontBoardServices
-        endif
-        
-        include $(THEOS_MAKE_PATH)/application.mk
-        EOF
-        
-        # 编译各个版本
+        # 编译持续性助手
+        cd TrollHelper
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 || true
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 \
+            ARCHS=arm64 \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive" || true
         [ -f ".theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper" ] && cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
+        ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded
         
+        # Legacy arm64 版本
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 || true
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 \
+            ARCHS=arm64 \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1 -DLEGACY_CT_BUG=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive" || true
         [ -f ".theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper" ] && cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
+        ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64
         
+        # arm64e 版本
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e || true
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive" || true
         [ -f ".theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper" ] && cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
-        
-        # 4. 普通版本 (放在最后编译)
-        make clean
-        make package FINALPACKAGE=1
-        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/TrollStorePersistenceHelper
+        ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64e
         cd ..
         
         # 编译 trollstorehelper
         cd RootHelper
-        
-        # 创建 include 目录并复制所有源文件
-        mkdir -p include
-        cp -r ../ChOma/src/* include/
-        cp -r ../ChOma/src/* .
-        
-        # 修改 main.m 中的 FAT 相关代码
-        sed -i.bak 's/FAT \*fat/Fat \*fat/g' main.m
-        sed -i.bak 's/struct FAT \*fat/Fat \*fat/g' main.m
-        sed -i.bak 's/struct Fat \*fat/Fat \*fat/g' main.m
-        
-        # 确保所有 FAT 相关的源文件都被包含
-        cat >> Makefile << 'EOF'
-        $(HELPER_NAME)_FILES += FAT.c
-        $(HELPER_NAME)_FILES += MachO.c
-        $(HELPER_NAME)_FILES += MemoryStream.c
-        $(HELPER_NAME)_FILES += Base64.c
-        $(HELPER_NAME)_FILES += BufferedStream.c
-        $(HELPER_NAME)_FILES += CSBlob.c
-        $(HELPER_NAME)_FILES += CodeDirectory.c
-        $(HELPER_NAME)_FILES += DER.c
-        $(HELPER_NAME)_FILES += DyldSharedCache.c
-        $(HELPER_NAME)_FILES += Entitlements.c
-        $(HELPER_NAME)_FILES += FileStream.c
-        $(HELPER_NAME)_FILES += Host.c
-        $(HELPER_NAME)_FILES += MachOLoadCommand.c
-        $(HELPER_NAME)_FILES += PatchFinder.c
-        $(HELPER_NAME)_FILES += PatchFinder_arm64.c
-        $(HELPER_NAME)_FILES += Util.c
-        $(HELPER_NAME)_FILES += arm64.c
-        EOF
-        
-        # 确保 FAT.h 中的定义正确
-        cat > include/FAT.h << 'EOF'
-        #pragma once
-        #include <stdio.h>
-        #include <stdint.h>
-        #include <mach/machine.h>
-        #include "MachO.h"
-        #include "MemoryStream.h"
-        
-        typedef struct Fat {
-            uint32_t magic;
-            uint32_t nfat_arch;
-            struct fat_arch* archs;
-            MemoryStream* stream;
-        } Fat;
-        
-        Fat* fat_init_from_path(const char* path);
-        Fat* fat_init_from_memory_stream(MemoryStream* stream);
-        MachO* fat_find_preferred_slice(Fat* fat);
-        MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
-        void fat_free(Fat* fat);
-        EOF
-        
-        # 修改 main.m 添加头文件引用
-        sed -i.bak '1i\
-        #import "FAT.h"\
-        #import "MachO.h"\
-        #import "MemoryStream.h"\
-        ' main.m
-        
-        # 创建 Makefile
-        cat > Makefile << 'EOF'
-        TARGET := iphone:clang:16.5:14.0
-        ARCHS = arm64
-        
-        HELPER_NAME = trollstorehelper
-        TARGET_CODESIGN = ../Exploits/fastPathSign/fastPathSign
-        
-        include $(THEOS)/makefiles/common.mk
-        
-        TOOL_NAME = $(HELPER_NAME)
-        
-        $(HELPER_NAME)_FILES = $(wildcard *.m) $(wildcard ../Shared/*.m) $(wildcard ../ChOma/src/*.c)
-        $(HELPER_NAME)_FILES += ../Exploits/fastPathSign/src/coretrust_bug.c ../Exploits/fastPathSign/src/codesign.m
-        
-        $(HELPER_NAME)_CODESIGN_FLAGS = --entitlements entitlements.plist
-        $(HELPER_NAME)_LDFLAGS = -L../ChOma/external/ios -lcrypto
-        
-        $(HELPER_NAME)_CFLAGS = -fobjc-arc -I./include -I../Shared $(shell pkg-config --cflags libcrypto) -I../ChOma/src -I../Exploits/fastPathSign/src
-        
-        $(HELPER_NAME)_INSTALL_PATH = /usr/local/bin
-        $(HELPER_NAME)_FRAMEWORKS = CoreTelephony
-        $(HELPER_NAME)_PRIVATE_FRAMEWORKS = SpringBoardServices BackBoardServices MobileContainerManager FrontBoardServices RunningBoardServices
-        
-        include $(THEOS_MAKE_PATH)/tool.mk
-        EOF
-        
         make package FINALPACKAGE=1 || true
         [ -f ".theos/obj/trollstorehelper" ] && cp .theos/obj/trollstorehelper ../_build/
         cd ..
-        
-        # 5. 组装最终文件
-        mkdir -p _build
-        # 复制 trollstorehelper
-        cp RootHelper/.theos/obj/trollstorehelper _build/
-        # 复制 TrollStore
-        cp -r TrollStore/.theos/obj/TrollStore.app _build/
-        # 复制 PersistenceHelper
-        cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper _build/
-        # 确保所有二进制文件都正确签名
-        for binary in ../_build/PersistenceHelper_Embedded* ../_build/trollstorehelper ../_build/TrollStorePersistenceHelper; do
-            if [ -f "$binary" ]; then
-                echo "Signing $binary"
-                ldid -S"$THEOS/sdks/TrollStore.entitlements" "$binary"
-            fi
-        done
-        
-        # 为 TrollStore.app 签名
-        if [ -d "../_build/TrollStore.app" ]; then
-            echo "Signing TrollStore.app"
-            ldid -S"$THEOS/sdks/TrollStore.entitlements" "../_build/TrollStore.app/TrollStore"
-        fi
     # 构建项目后，先准备文件
     - name: Prepare artifacts
       if: always()
