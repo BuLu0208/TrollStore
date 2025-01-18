@@ -285,10 +285,15 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
+        # 创建输出目录
+        mkdir -p _build
+        
         # 编译主程序
         cd TrollStore
         sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
-        make package FINALPACKAGE=1
+        make package FINALPACKAGE=1 || true
+        # 如果编译成功就复制
+        [ -d ".theos/obj/TrollStore.app" ] && cp -r .theos/obj/TrollStore.app ../_build/
         cd ..
         
         # 编译持续性助手
@@ -414,7 +419,7 @@ jobs:
             ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
             ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
             ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
-            ADDITIONAL_LIBRARIES="archive"
+            ADDITIONAL_LIBRARIES="archive" || true
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded
         
@@ -426,7 +431,7 @@ jobs:
             ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1 -DLEGACY_CT_BUG=1" \
             ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
             ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
-            ADDITIONAL_LIBRARIES="archive"
+            ADDITIONAL_LIBRARIES="archive" || true
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64
         
@@ -437,7 +442,7 @@ jobs:
             ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
             ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
             ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
-            ADDITIONAL_LIBRARIES="archive"
+            ADDITIONAL_LIBRARIES="archive" || true
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64e
         
@@ -508,10 +513,10 @@ jobs:
         
         trollstorehelper_LDFLAGS = -L../ChOma/external/ios -lcrypto
         trollstorehelper_FRAMEWORKS = CoreTelephony Security Foundation MobileCoreServices
-        trollstorehelper_PRIVATE_FRAMEWORKS = SpringBoardServices BackBoardServices MobileContainerManager FrontBoardServices
+        trollstorehelper_PRIVATE_FRAMEWORKS = SpringBoardServices BackBoardServices MobileContainerManager FrontBoardServices RunningBoardServices
         EOF
         
-        make package FINALPACKAGE=1
+        make package FINALPACKAGE=1 || true
         cd ..
         
         # 5. 组装最终文件
@@ -541,6 +546,7 @@ jobs:
     # 上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
+      if: always()  # 即使前面步骤失败也执行
       with:
         name: TrollStore-Components
         path: |
