@@ -258,6 +258,44 @@ jobs:
         cp ../ChOma/src/*.h include/
         cp ../ChOma/src/*.c include/
         
+        # 替换 unarchive.m 文件，使用 NSFileManager 代替 libarchive
+        cat > unarchive.m << 'EOF'
+        #import <Foundation/Foundation.h>
+        
+        int extract_archive(const char* archive_path, const char* extract_path) {
+            @autoreleasepool {
+                NSString* archivePath = [NSString stringWithUTF8String:archive_path];
+                NSString* extractPath = [NSString stringWithUTF8String:extract_path];
+                
+                NSFileManager* fm = [NSFileManager defaultManager];
+                NSError* error = nil;
+                
+                // 创建目标目录
+                if (![fm createDirectoryAtPath:extractPath 
+                    withIntermediateDirectories:YES 
+                    attributes:nil 
+                    error:&error]) {
+                    NSLog(@"Failed to create directory: %@", error);
+                    return -1;
+                }
+                
+                // 解压文件
+                if (![fm fileExistsAtPath:archivePath]) {
+                    NSLog(@"Archive file does not exist");
+                    return -1;
+                }
+                
+                NSTask* task = [[NSTask alloc] init];
+                [task setLaunchPath:@"/usr/bin/tar"];
+                [task setArguments:@[@"-xf", archivePath, @"-C", extractPath]];
+                [task launch];
+                [task waitUntilExit];
+                
+                return [task terminationStatus];
+            }
+        }
+        EOF
+        
         # 修改类型定义，确保一致性
         cat > include/FAT.h << 'EOF'
         #pragma once
