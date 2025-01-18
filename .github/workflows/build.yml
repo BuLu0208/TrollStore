@@ -294,6 +294,50 @@ jobs:
         # 编译持续性助手
         cd TrollHelper
         
+        # 创建 Makefile
+        cat > Makefile << 'EOF'
+        export EMBEDDED_ROOT_HELPER ?= 0
+        export LEGACY_CT_BUG ?= 0
+
+        TARGET := iphone:clang:16.5:14.0
+        INSTALL_TARGET_PROCESSES = TrollStorePersistenceHelper
+
+        ifdef CUSTOM_ARCHS
+        ARCHS = $(CUSTOM_ARCHS)
+        else
+        ARCHS = arm64
+        endif
+
+        ifneq ($(LEGACY_CT_BUG),1)
+        TARGET_CODESIGN = ../Exploits/fastPathSign/fastPathSign
+        endif
+
+        include $(THEOS)/makefiles/common.mk
+
+        APPLICATION_NAME = TrollStorePersistenceHelper
+
+        TrollStorePersistenceHelper_FILES = $(wildcard *.m) $(wildcard ../Shared/*.m)
+        TrollStorePersistenceHelper_FRAMEWORKS = UIKit CoreGraphics CoreServices CoreTelephony
+        TrollStorePersistenceHelper_PRIVATE_FRAMEWORKS = Preferences MobileContainerManager
+        TrollStorePersistenceHelper_CFLAGS = -fobjc-arc -I../Shared -I$(shell brew --prefix)/opt/libarchive/include
+
+        ifeq ($(LEGACY_CT_BUG),1)
+        TrollStorePersistenceHelper_CODESIGN_FLAGS = -Sentitlements.plist -K../legacy.p12
+        TrollStorePersistenceHelper_CFLAGS += -DLEGACY_CT_BUG=1
+        else
+        TrollStorePersistenceHelper_CODESIGN_FLAGS = --entitlements entitlements.plist
+        endif
+
+        ifeq ($(EMBEDDED_ROOT_HELPER),1)
+        TrollStorePersistenceHelper_CFLAGS += -DEMBEDDED_ROOT_HELPER=1
+        TrollStorePersistenceHelper_FILES += $(wildcard ../RootHelper/*.m)
+        TrollStorePersistenceHelper_LIBRARIES += archive
+        TrollStorePersistenceHelper_PRIVATE_FRAMEWORKS += SpringBoardServices BackBoardServices FrontBoardServices
+        endif
+
+        include $(THEOS_MAKE_PATH)/application.mk
+        EOF
+
         # 修改所有版本的更新 URL
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g"
         find . -type f -name "*.m" -o -name "*.h" | xargs sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g"
@@ -364,19 +408,36 @@ jobs:
         
         # 1. 标准版本
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 \
+            ARCHS=arm64 \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive"
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded
         
         # 2. Legacy arm64 版本
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 \
+            ARCHS=arm64 \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1 -DLEGACY_CT_BUG=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive"
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64
         
         # 3. arm64e 版本
         make clean
-        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
+        make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e \
+            TARGET=iphone:clang:16.5:14.0 \
+            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared -DEMBEDDED_ROOT_HELPER=1" \
+            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
+            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" \
+            ADDITIONAL_LIBRARIES="archive"
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
         ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/PersistenceHelper_Embedded_Legacy_arm64e
         
@@ -439,12 +500,15 @@ jobs:
         
         # 修改 Makefile 添加源文件和包含路径
         cat >> Makefile << 'EOF'
-        trollstorehelper_FILES += ../ChOma/src/FAT.c
-        trollstorehelper_FILES += ../ChOma/src/MachO.c
-        trollstorehelper_FILES += ../ChOma/src/MemoryStream.c
-        ADDITIONAL_CFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
-        ADDITIONAL_OBJCFLAGS += -I./include -I../ChOma/src -DTROLLSTORE_ROOT_HELPER=1
-        trollstorehelper_FRAMEWORKS = Security Foundation CoreTelephony MobileCoreServices
+        trollstorehelper_FILES = $(wildcard *.m) $(wildcard ../Shared/*.m) $(wildcard ../ChOma/src/*.c)
+        trollstorehelper_FILES += ../Exploits/fastPathSign/src/coretrust_bug.c ../Exploits/fastPathSign/src/codesign.m
+        
+        ADDITIONAL_CFLAGS += -fobjc-arc -I../Shared $(shell pkg-config --cflags libcrypto) -I../ChOma/src -I../Exploits/fastPathSign/src
+        ADDITIONAL_OBJCFLAGS += -fobjc-arc -I../Shared $(shell pkg-config --cflags libcrypto) -I../ChOma/src -I../Exploits/fastPathSign/src
+        
+        trollstorehelper_LDFLAGS = -L../ChOma/external/ios -lcrypto
+        trollstorehelper_FRAMEWORKS = CoreTelephony Security Foundation MobileCoreServices
+        trollstorehelper_PRIVATE_FRAMEWORKS = SpringBoardServices BackBoardServices MobileContainerManager FrontBoardServices
         EOF
         
         make package FINALPACKAGE=1
