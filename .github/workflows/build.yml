@@ -94,6 +94,11 @@ jobs:
         
         # 首先编译 fastPathSign
         cd Exploits/fastPathSign
+        
+        # 创建 include 目录并复制 ChOma 源文件
+        mkdir -p include
+        cp -r ../../ChOma/src/* include/
+        
         # 创建 Makefile
         cat > Makefile << 'EOF'
         TARGET := macosx:clang:latest
@@ -104,8 +109,8 @@ jobs:
         TOOL_NAME = fastPathSign
 
         fastPathSign_FILES = $(wildcard src/*.c) $(wildcard src/*.m)
-        fastPathSign_CFLAGS = -Isrc -I../../ChOma/src
-        fastPathSign_CCFLAGS = -Isrc -I../../ChOma/src
+        fastPathSign_CFLAGS = -Isrc -I./include
+        fastPathSign_CCFLAGS = -Isrc -I./include
         fastPathSign_FRAMEWORKS = Security Foundation
         fastPathSign_CODESIGN_FLAGS = -Sent.plist
         fastPathSign_INSTALL_PATH = /usr/local/bin
@@ -126,8 +131,10 @@ jobs:
         EOF
 
         make package FINALPACKAGE=1 || true
-        chmod +x fastPathSign
-        cp fastPathSign ../../
+        if [ -f ".theos/obj/macosx/x86_64/fastPathSign" ]; then
+          cp .theos/obj/macosx/x86_64/fastPathSign ../../
+          chmod +x ../../fastPathSign
+        fi
         cd ../../
         
         # 编译主程序
