@@ -249,7 +249,7 @@ jobs:
         # 编译持续性助手
         cd TrollHelper
         
-        # 替换 unarchive.m 文件，使用 posix_spawn 代替 libarchive
+        # 替换 unarchive.m 文件
         cat > ../RootHelper/unarchive.m << 'EOF'
         #import <Foundation/Foundation.h>
         #import <spawn.h>
@@ -306,9 +306,7 @@ jobs:
         }
         EOF
         
-        make package FINALPACKAGE=1
-        
-        # 编译三个嵌入式版本的 PersistenceHelper
+        # 创建 _build 目录
         mkdir -p ../_build
         
         # 1. 标准版本
@@ -325,7 +323,11 @@ jobs:
         make clean
         make FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e
         cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/PersistenceHelper_Embedded_Legacy_arm64e
+        
+        # 4. 普通版本 (放在最后编译)
         make clean
+        make package FINALPACKAGE=1
+        cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/TrollStorePersistenceHelper
         cd ..
         
         # 编译 trollstorehelper
