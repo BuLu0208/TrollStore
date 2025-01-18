@@ -407,6 +407,20 @@ jobs:
         # 复制 PersistenceHelper
         cp TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper _build/
 
+        # 确保所有二进制文件都正确签名
+        for binary in ../_build/PersistenceHelper_Embedded* ../_build/trollstorehelper ../_build/TrollStorePersistenceHelper; do
+            if [ -f "$binary" ]; then
+                echo "Signing $binary"
+                ldid -S"$THEOS/sdks/TrollStore.entitlements" "$binary"
+            fi
+        done
+        
+        # 为 TrollStore.app 签名
+        if [ -d "../_build/TrollStore.app" ]; then
+            echo "Signing TrollStore.app"
+            ldid -S"$THEOS/sdks/TrollStore.entitlements" "../_build/TrollStore.app/TrollStore"
+        fi
+
     # 上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
