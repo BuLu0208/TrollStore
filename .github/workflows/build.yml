@@ -409,6 +409,40 @@ jobs:
         # 编译 trollstorehelper
         cd RootHelper
         
+        # 创建 include 目录
+        mkdir -p include
+        cp ../ChOma/src/*.h include/
+        
+        # 创建 FAT.h 头文件
+        cat > include/FAT.h << 'EOF'
+        #pragma once
+        #include <stdio.h>
+        #include <stdint.h>
+        #include <mach/machine.h>
+        #include "MachO.h"
+        #include "MemoryStream.h"
+        
+        typedef struct Fat {
+            uint32_t magic;
+            uint32_t nfat_arch;
+            struct fat_arch* archs;
+            MemoryStream* stream;
+        } Fat;
+        
+        Fat* fat_init_from_path(const char* path);
+        Fat* fat_init_from_memory_stream(MemoryStream* stream);
+        MachO* fat_find_preferred_slice(Fat* fat);
+        MachO* fat_find_slice(Fat* fat, cpu_type_t cputype, cpu_subtype_t cpusubtype);
+        void fat_free(Fat* fat);
+        EOF
+        
+        # 修改 main.m 中的引用
+        sed -i.bak '1i\
+        #import "FAT.h"\
+        #import "MachO.h"\
+        #import "MemoryStream.h"\
+        ' main.m
+        
         # 创建 Makefile
         cat > Makefile << 'EOF'
         TARGET := iphone:clang:16.5:14.0
@@ -427,10 +461,9 @@ jobs:
         $(HELPER_NAME)_CODESIGN_FLAGS = --entitlements entitlements.plist
         $(HELPER_NAME)_LDFLAGS = -L../ChOma/external/ios -lcrypto
         
-        $(HELPER_NAME)_CFLAGS = -fobjc-arc -I../Shared $(shell pkg-config --cflags libcrypto) -I../ChOma/src -I../Exploits/fastPathSign/src -I$(shell brew --prefix)/opt/libarchive/include
+        $(HELPER_NAME)_CFLAGS = -fobjc-arc -I./include -I../Shared $(shell pkg-config --cflags libcrypto) -I../ChOma/src -I../Exploits/fastPathSign/src
         
         $(HELPER_NAME)_INSTALL_PATH = /usr/local/bin
-        $(HELPER_NAME)_LIBRARIES = archive
         $(HELPER_NAME)_FRAMEWORKS = CoreTelephony
         $(HELPER_NAME)_PRIVATE_FRAMEWORKS = SpringBoardServices BackBoardServices MobileContainerManager FrontBoardServices RunningBoardServices
         
@@ -462,29 +495,26 @@ jobs:
             echo "Signing TrollStore.app"
             ldid -S"$THEOS/sdks/TrollStore.entitlements" "../_build/TrollStore.app/TrollStore"
         fi
-    # 上传构建产物
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      if: always()  # 即使前面步骤失败也执行
-      with:
-        name: TrollStore-Components
-        path: |
-          ${{ runner.temp }}/upload/*
-
-    # 在上传前准备文件
+    # 构建项目后，先准备文件
     - name: Prepare artifacts
       if: always()
       run: |
         mkdir -p ${{ runner.temp }}/upload
         
-        # 检查每个文件是否存在并复制到上传目录
-        for file in trollstorehelper TrollStore.app TrollStorePersistenceHelper PersistenceHelper_Embedded PersistenceHelper_Embedded_Legacy_arm64 PersistenceHelper_Embedded_Legacy_arm64e; do
-          if [ -e "_build/$file" ]; then
-            # 如果是成功编译的文件，使用原始路径
-            cp -r "_build/$file" "${{ runner.temp }}/upload/"
-          elif [ -e "_build/*" ]; then
-            # 如果有其他编译成功的文件，也复制
-            cp -r "_build/"* "${{ runner.temp }}/upload/"
-            break
-          fi
-        done 
+        # 检查并复制成功编译的文件
+        if [ -d "_build" ]; then
+          echo "Copying built files..."
+          cp -r _build/* ${{ runner.temp }}/upload/ || true
+        fi
+        
+        # 列出要上传的文件
+        echo "Files to be uploaded:"
+        ls -la ${{ runner.temp }}/upload/
+
+    # 然后上传
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: TrollStore-Components
+        path: ${{ runner.temp }}/upload 
