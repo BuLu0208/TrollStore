@@ -413,7 +413,11 @@ jobs:
         mkdir -p include
         cp ../ChOma/src/*.h include/
         
-        # 创建 FAT.h 头文件
+        # 修改 main.m 中的 FAT 相关代码
+        sed -i.bak 's/FAT \*fat/Fat \*fat/g' main.m
+        sed -i.bak 's/struct FAT \*fat/Fat \*fat/g' main.m
+        
+        # 确保 FAT.h 中的定义正确
         cat > include/FAT.h << 'EOF'
         #pragma once
         #include <stdio.h>
@@ -436,7 +440,7 @@ jobs:
         void fat_free(Fat* fat);
         EOF
         
-        # 修改 main.m 中的引用
+        # 修改 main.m 添加头文件引用
         sed -i.bak '1i\
         #import "FAT.h"\
         #import "MachO.h"\
