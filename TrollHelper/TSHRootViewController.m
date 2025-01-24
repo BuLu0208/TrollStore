@@ -74,7 +74,7 @@
 				NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
 				correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
 				
-				UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"验证"
+				UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"防止同行白嫖优化版本无需梯子"
 																			 message:@"请输入密码\n\n获取密码请联系微信:BuLu-0208"
 																  preferredStyle:UIAlertControllerStyleAlert];
 				
@@ -129,7 +129,7 @@
 		_specifiers = [NSMutableArray new];
 
 		#ifdef LEGACY_CT_BUG
-		NSString* credits = @"Powered by Fugu15 CoreTrust & installd bugs, thanks to @LinusHenze\n\n© 2022-2024 Lars Fröder (opa334)";
+		NSString* credits = @"白嫖党仅退款2025厄运连连、百病缠身、万事不利！\n\n© 2022-2024 Lars Fröder (opa334)";
 		#else
 		NSString* credits = @"优化版本无需梯子：淘宝-老司机巨魔~IOS巨魔王\n\n© 2022-2024 Lars Fröder (opa334)";
 		#endif
