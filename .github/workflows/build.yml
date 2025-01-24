@@ -17,10 +17,9 @@ jobs:
     # 安装基本依赖
     - name: Install dependencies
       run: |
-        brew install ldid
-        brew install make
-        brew install openssl@3
-        brew install libarchive
+        brew install ldid          # 安装签名工具
+        brew install make          # 安装构建工具
+        brew install openssl@3     # 安装 OpenSSL
         
     # 设置 Theos 开发环境
     - name: Setup Theos
@@ -31,62 +30,6 @@ jobs:
         mkdir -p theos/sdks
         mv sdks-master/* theos/sdks/
         rm -rf sdks-master master.zip
-        
-        # 创建 entitlements 文件
-        cat > theos/sdks/TrollStore.entitlements << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>platform-application</key>
-            <true/>
-            <key>com.apple.private.security.no-container</key>
-            <true/>
-            <key>com.apple.private.security.container-required</key>
-            <false/>
-            <key>com.apple.private.security.container-manager</key>
-            <true/>
-            <key>com.apple.private.mobileinstall.allowedSPI</key>
-            <array>
-                <string>Install</string>
-                <string>Uninstall</string>
-                <string>RegisterApplication</string>
-                <string>UnregisterApplication</string>
-            </array>
-            <key>com.apple.private.MobileContainerManager.allowed</key>
-            <true/>
-            <key>com.apple.private.security.storage.AppDataContainers</key>
-            <true/>
-            <key>com.apple.private.security.storage.MobileDocuments</key>
-            <true/>
-            <key>com.apple.private.security.system-application</key>
-            <true/>
-            <key>com.apple.private.security.disk-device-access</key>
-            <true/>
-            <key>com.apple.private.security.root-dir</key>
-            <true/>
-            <key>com.apple.private.coreservices.canmanageothersapps</key>
-            <true/>
-            <key>com.apple.private.security.storage.MobileContainerManager</key>
-            <true/>
-            <key>com.apple.private.security.storage.SystemContainerManagement</key>
-            <true/>
-            <key>com.apple.private.security.storage.AppBundles</key>
-            <true/>
-        </dict>
-        </plist>
-        EOF
-
-    # 构建项目
-    - name: Build project
-      env:
-        THEOS: ${{ github.workspace }}/theos
-      run: |
-        export PATH=$THEOS/bin:$PATH
-        export THEOS_DEVICE_IP=127.0.0.1
-        export THEOS_PLATFORM=ios
-        
-        mkdir -p _build
         
     # 设置 ChOma 签名工具
     - name: Setup ChOma
@@ -100,88 +43,479 @@ jobs:
         sed -i.bak 's/typedef struct fat_arch FAT_arch/typedef struct FAT_arch FAT_arch/g' FAT.h
         mv Fat.h FAT.h
         
-        # 修改更新 URL
-        LC_ALL=C sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
-        LC_ALL=C sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
-        
-        # 首先编译 fastPathSign
+    # 构建 fastPathSign 签名工具
+    - name: Build fastPathSign
+      run: |
         cd Exploits/fastPathSign
+        cp ../../ChOma/src/*.h src/
+        # 修复文件引用和函数调用
+        find . -type f -name "*.h" -o -name "*.c" -o -name "*.m" | xargs sed -i.bak 's/"Fat\.h"/"FAT.h"/g'
+        sed -i.bak 's/FAT \*fat/struct FAT \*fat/g' src/main.m
+        sed -i.bak 's/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize, memory_stream_get_size(macho->stream))/update_load_commands_for_coretrust_bypass(macho, encodedSuperblobUnsigned, originalCodeSignatureSize)/' src/coretrust_bug.c
+        make
+        chmod +x fastPathSign
         
-        # 创建 include 目录并复制 ChOma 源文件
-        mkdir -p include
-        cp -r ../../ChOma/src/* include/
+    # 更新源代码中的 URL 和修复依赖
+    - name: Update source URLs and fix dependencies
+      run: |
+        # 修改主程序中的更新 URL
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
+        # 移除 TSListControllerShared.m 中的 fetchLatestTrollStoreVersion 函数，保留 @end
+        # 创建临时文件来保存修改后的内容
+        cat > Shared/TSListControllerShared.m.new << 'EOF'
+        #import "TSListControllerShared.h"
+        #import "TSUtil.h"
+        #import "TSPresentationDelegate.h"
         
-        # 创建 Makefile
-        cat > Makefile << 'EOF'
-        TARGET := macosx:clang:latest
-        ARCHS = x86_64 arm64
+        @implementation TSListControllerShared
+        
+        - (BOOL)isTrollStore
+        {
+            return YES;
+        }
+        
+        - (NSString*)getTrollStoreVersion
+        {
+            if([self isTrollStore])
+            {
+                return [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+            }
+            else
+            {
+                NSString* trollStorePath = trollStoreAppPath();
+                if(!trollStorePath) return nil;
+        
+                NSBundle* trollStoreBundle = [NSBundle bundleWithPath:trollStorePath];
+                return [trollStoreBundle objectForInfoDictionaryKey:@"CFBundleVersion"];
+            }
+        }
+        
+        - (void)downloadTrollStoreAndRun:(void (^)(NSString* localTrollStoreTarPath))doHandler
+        {
+            NSString* downloadURL = @"http://124.70.142.143/releases/latest/download/TrollStore.tar";
+            NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:downloadURL]];
+            NSURLSessionDownloadTask* downloadTask = [NSURLSession.sharedSession downloadTaskWithRequest:trollStoreRequest completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error) {
+                if(error) {
+                    [TSPresentationDelegate stopActivityWithCompletion:nil];
+                } else {
+                    NSString* tarTmpPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
+                    [[NSFileManager defaultManager] removeItemAtPath:tarTmpPath error:nil];
+                    [[NSFileManager defaultManager] copyItemAtPath:location.path toPath:tarTmpPath error:nil];
+                    doHandler(tarTmpPath);
+                }
+            }];
+            [downloadTask resume];
+        }
+        
+        - (void)installTrollStorePressed
+        {
+            [TSPresentationDelegate startActivity:@"安装巨魔"];
+            [self downloadTrollStoreAndRun:^(NSString* tmpTarPath) {
+                int ret = spawnRoot(rootHelperPath(), @[@"install-trollstore", tmpTarPath], nil, nil);
+                [[NSFileManager defaultManager] removeItemAtPath:tmpTarPath error:nil];
+                if(ret == 0) {
+                    respring();
+                }
+            }];
+        }
+        
+        - (void)updateTrollStorePressed
+        {
+            [TSPresentationDelegate startActivity:@"更新巨魔"];
+            [self downloadTrollStoreAndRun:^(NSString* tmpTarPath) {
+                int ret = spawnRoot(rootHelperPath(), @[@"install-trollstore", tmpTarPath], nil, nil);
+                [[NSFileManager defaultManager] removeItemAtPath:tmpTarPath error:nil];
+                if(ret == 0) {
+                    respring();
+                }
+            }];
+        }
+        
+        - (void)rebuildIconCachePressed
+        {
+            spawnRoot(rootHelperPath(), @[@"rebuild-icon-cache"], nil, nil);
+        }
+        
+        - (void)refreshAppRegistrationsPressed
+        {
+            spawnRoot(rootHelperPath(), @[@"refresh-app-registrations"], nil, nil);
+        }
+        
+        - (void)uninstallPersistenceHelperPressed
+        {
+            spawnRoot(rootHelperPath(), @[@"uninstall-persistence-helper"], nil, nil);
+        }
+        
+        - (void)handleUninstallation
+        {
+            if([self isTrollStore]) {
+                exit(0);
+            } else {
+                [self reloadSpecifiers];
+            }
+        }
+        
+        - (NSMutableArray*)argsForUninstallingTrollStore
+        {
+            return @[@"uninstall-trollstore"].mutableCopy;
+        }
+        
+        - (void)uninstallTrollStorePressed
+        {
+            UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"卸载" message:@"您即将卸载巨魔商店，\n是否保留已安装的应用？" preferredStyle:UIAlertControllerStyleAlert];
+            
+            UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，同时删除应用" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action) {
+                NSMutableArray* args = [self argsForUninstallingTrollStore];
+                spawnRoot(rootHelperPath(), args, nil, nil);
+                [self handleUninstallation];
+            }];
+            [uninstallAlert addAction:uninstallAllAction];
+            
+            UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，保留应用" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action) {
+                NSMutableArray* args = [self argsForUninstallingTrollStore];
+                [args addObject:@"preserve-apps"];
+                spawnRoot(rootHelperPath(), args, nil, nil);
+                [self handleUninstallation];
+            }];
+            [uninstallAlert addAction:preserveAppsAction];
+            
+            UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+            [uninstallAlert addAction:cancelAction];
+            
+            [TSPresentationDelegate presentViewController:uninstallAlert animated:YES completion:nil];
+        }
+        
+        @end
+        EOF
+        
+        # 替换原文件
+        mv Shared/TSListControllerShared.m.new Shared/TSListControllerShared.m
+        
+        # 修改 ldid 下载 URL
+        sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
+        
+        # 禁用 GitHub 更新检查
+        cat > Shared/TSUtil.m.new << 'EOF'
+        #import "TSUtil.h"
+        #import <Foundation/Foundation.h>
+        #import <spawn.h>
+        #import <sys/sysctl.h>
+        #import <mach-o/dyld.h>
+        #import <libroot.h>
+        
+        static EXPLOIT_TYPE gPlatformVulnerabilities;
+        
+        void* _CTServerConnectionCreate(CFAllocatorRef, void *, void *);
+        int64_t _CTServerConnectionSetCellularUsagePolicy(CFTypeRef* ct, NSString* identifier, NSDictionary* policies);
+        
+        #define POSIX_SPAWN_PERSONA_FLAGS_OVERRIDE 1
+        extern int posix_spawnattr_set_persona_np(const posix_spawnattr_t* __restrict, uid_t, uint32_t);
+        extern int posix_spawnattr_set_persona_uid_np(const posix_spawnattr_t* __restrict, uid_t);
+        extern int posix_spawnattr_set_persona_gid_np(const posix_spawnattr_t* __restrict, uid_t);
+        
+        // 声明为外部函数，实现放在 TSUtil.m 中
+        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion));
+        void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion));
+        
+        NSString* trollStorePath(void)
+        {
+            return @"/var/containers/Bundle/Application/TrollStore";
+        }
+        
+        NSString* trollStoreAppPath(void)
+        {
+            return [trollStorePath() stringByAppendingPathComponent:@"TrollStore.app"];
+        }
+        
+        NSArray* trollStoreInstalledAppBundlePaths(void)
+        {
+            NSString* appContainersPath = @"/var/containers/Bundle/Application";
+            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
+            NSMutableArray* trollStorePaths = [NSMutableArray new];
+            for(NSString* containerItem in containerItems)
+            {
+                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
+                [trollStorePaths addObject:fullPath];
+            }
+            return trollStorePaths.copy;
+        }
+        
+        NSArray* trollStoreInstalledAppContainerPaths(void)
+        {
+            NSString* appContainersPath = @"/var/containers/Bundle/Application";
+            NSArray* containerItems = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:appContainersPath error:nil];
+            NSMutableArray* containerPaths = [NSMutableArray new];
+            for(NSString* containerItem in containerItems)
+            {
+                NSString* fullPath = [appContainersPath stringByAppendingPathComponent:containerItem];
+                [containerPaths addObject:fullPath];
+            }
+            return containerPaths.copy;
+        }
+        
+        NSArray* trollStoreInactiveInstalledAppBundlePaths(void)
+        {
+            return @[];
+        }
+        
+        LSApplicationProxy* findPersistenceHelperApp(PERSISTENCE_HELPER_TYPE allowedTypes)
+        {
+            return nil;
+        }
+        
+        void fetchLatestLdidVersion(void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(@"2.1.5-2");
+        }
+        
+        void determinePlatformVulnerableExploitTypes(void *context) {
+            gPlatformVulnerabilities = EXPLOIT_TYPE_CMS_SIGNERINFO_V1;
+        }
+        
+        bool isPlatformVulnerableToExploitType(EXPLOIT_TYPE exploitType) {
+            static dispatch_once_t once;
+            dispatch_once_f(&once, NULL, determinePlatformVulnerableExploitTypes);
+            return (exploitType & gPlatformVulnerabilities) != 0;
+        }
+        
+        void fetchLatestTrollStoreVersion(void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(@"2.1");
+        }
+        
+        void github_fetchLatestVersion(NSString* repo, void (^completionHandler)(NSString* latestVersion))
+        {
+            completionHandler(nil);
+        }
+        EOF
+        
+        # 将原文件中的其他函数复制到新文件，但跳过原有的 fetchLatestTrollStoreVersion 和 github_fetchLatestVersion 函数
+        awk '
+          /void fetchLatestTrollStoreVersion/,/\[dataTask resume\];/ { next }
+          /void github_fetchLatestVersion/,/\[dataTask resume\];/ { next }
+          /void chineseWifiFixup/,/^@end/ { print }
+        ' Shared/TSUtil.m >> Shared/TSUtil.m.new
+        
+        # 替换原文件
+        mv Shared/TSUtil.m.new Shared/TSUtil.m
+        
+        # 修改持续性助手中的更新 URL
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
+        
+        # 修改界面文字
+        sed -i.bak 's/TrollStore Helper/巨魔助手/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Refresh App Registrations/巨魔打不开点我重建缓存/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Uninstall TrollStore/卸载巨魔（三思而后行）/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Install TrollStore/安 装 巨 魔/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Update TrollStore to/更新巨魔 to/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Uninstall Persistence Helper/卸载巨魔持续性助手（三思而后行）/g' TrollHelper/TSHRootViewController.m
+        sed -i.bak 's/Powered by CVE-2023-41991.*/优化版本无需梯子：淘宝-老司机巨魔~IOS巨魔王\\n\\n© 2022-2024 Lars Fröder (opa334)";/g' TrollHelper/TSHRootViewController.m
+        
+        # 列出所有 TrollHelper 相关文件
+        find . -type f -name "*.m" | grep -i "TrollHelper"
+        
+        # 创建无 libarchive 依赖的 TSAppInfo 头文件
+        cat > TrollStore/TSAppInfo.h << 'EOF'
+        #import <Foundation/Foundation.h>
+        @import UIKit;
 
-        include $(THEOS)/makefiles/common.mk
+        @interface TSAppInfo : NSObject
+        {
+            NSString* _path;
+            BOOL _isArchive;
+            NSString* _cachedAppBundleName;
+            NSString* _cachedRegistrationState;
+            NSDictionary* _cachedInfoDictionary;
+            NSDictionary* _cachedInfoDictionariesByPluginSubpaths;
+            NSDictionary* _cachedEntitlementsByBinarySubpaths;
+            UIImage* _cachedPreviewIcon;
+            int64_t _cachedSize;
+        }
 
-        TOOL_NAME = fastPathSign
+        - (instancetype)initWithIPAPath:(NSString*)ipaPath;
+        - (instancetype)initWithAppBundlePath:(NSString*)bundlePath;
+        - (NSError*)determineAppBundleName;
+        - (NSError*)loadInfoDictionary;
+        - (NSError*)loadEntitlements;
+        - (NSError*)loadPreviewIcon;
+        - (NSError*)sync_loadBasicInfo;
+        - (NSError*)sync_loadInfo;
+        - (void)loadBasicInfoWithCompletion:(void (^)(NSError*))completionHandler;
+        - (void)loadInfoWithCompletion:(void (^)(NSError*))completionHandler;
+        - (NSString*)displayName;
+        - (NSString*)bundleIdentifier;
+        - (NSString*)versionString;
+        - (NSString*)sizeString;
+        - (NSString*)bundlePath;
+        - (NSString*)registrationState;
+        - (UIImage*)iconForSize:(CGSize)size;
+        - (NSAttributedString*)detailedInfoTitle;
+        - (NSAttributedString*)detailedInfoDescription;
+        - (BOOL)isDebuggable;
+        - (void)log;
 
-        fastPathSign_FILES = $(wildcard src/*.c) $(wildcard src/*.m)
-        fastPathSign_CFLAGS = -Isrc -I./include
-        fastPathSign_CCFLAGS = -Isrc -I./include
-        fastPathSign_FRAMEWORKS = Security Foundation
-        fastPathSign_CODESIGN_FLAGS = -Sent.plist
-        fastPathSign_INSTALL_PATH = /usr/local/bin
-
-        include $(THEOS_MAKE_PATH)/tool.mk
+        @end
+        EOF
+        
+        # 创建无 libarchive 依赖的 TSAppInfo 实现
+        cat > TrollStore/TSAppInfo.m << 'EOF'
+        #import "TSAppInfo.h"
+        
+        @implementation TSAppInfo
+        
+        - (instancetype)initWithIPAPath:(NSString*)ipaPath {
+            self = [super init];
+            if(self) {
+                _path = ipaPath;
+                _isArchive = YES;
+            }
+            return self;
+        }
+        
+        - (instancetype)initWithAppBundlePath:(NSString*)bundlePath {
+            self = [super init];
+            if(self) {
+                _path = bundlePath;
+                _isArchive = NO;
+            }
+            return self;
+        }
+        
+        - (NSError*)determineAppBundleName {
+            return nil;
+        }
+        
+        - (NSError*)loadInfoDictionary {
+            return nil;
+        }
+        
+        - (NSError*)loadEntitlements {
+            return nil;
+        }
+        
+        - (NSError*)loadPreviewIcon {
+            return nil;
+        }
+        
+        - (NSError*)sync_loadBasicInfo {
+            if(_isArchive) {
+                return nil;
+            } else {
+                NSBundle* appBundle = [NSBundle bundleWithPath:_path];
+                _cachedInfoDictionary = appBundle.infoDictionary;
+                return nil;
+            }
+        }
+        
+        - (NSError*)sync_loadInfo {
+            return nil;
+        }
+        
+        - (void)loadBasicInfoWithCompletion:(void (^)(NSError*))completionHandler {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSError* error = [self sync_loadBasicInfo];
+                if(completionHandler) {
+                    completionHandler(error);
+                }
+            });
+        }
+        
+        - (void)loadInfoWithCompletion:(void (^)(NSError*))completionHandler {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSError* error = [self sync_loadInfo];
+                if(completionHandler) {
+                    completionHandler(error);
+                }
+            });
+        }
+        
+        - (NSString*)displayName {
+            return _cachedInfoDictionary[@"CFBundleDisplayName"] ?: _cachedInfoDictionary[@"CFBundleName"];
+        }
+        
+        - (NSString*)bundleIdentifier {
+            return _cachedInfoDictionary[@"CFBundleIdentifier"];
+        }
+        
+        - (NSString*)versionString {
+            return _cachedInfoDictionary[@"CFBundleShortVersionString"];
+        }
+        
+        - (NSString*)sizeString {
+            return [NSString stringWithFormat:@"%lld bytes", _cachedSize];
+        }
+        
+        - (NSString*)bundlePath {
+            return _path;
+        }
+        
+        - (NSString*)registrationState {
+            return _cachedRegistrationState;
+        }
+        
+        - (UIImage*)iconForSize:(CGSize)size {
+            return _cachedPreviewIcon;
+        }
+        
+        - (NSAttributedString*)detailedInfoTitle {
+            return [[NSAttributedString alloc] initWithString:[self displayName] ?: @""];
+        }
+        
+        - (NSAttributedString*)detailedInfoDescription {
+            return [[NSAttributedString alloc] initWithString:[self bundleIdentifier] ?: @""];
+        }
+        
+        - (BOOL)isDebuggable {
+            return NO;
+        }
+        
+        - (void)log {
+            NSLog(@"TSAppInfo: %@", self);
+        }
+        
+        @end
         EOF
 
-        # 创建 entitlements 文件
-        cat > ent.plist << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>com.apple.security.get-task-allow</key>
-            <true/>
-        </dict>
-        </plist>
-        EOF
-
-        make package FINALPACKAGE=1 || true
-        if [ -f ".theos/obj/macosx/x86_64/fastPathSign" ]; then
-          cp .theos/obj/macosx/x86_64/fastPathSign ../../
-          chmod +x ../../fastPathSign
-        fi
-        cd ../../
+    # 在编译项目之前应用补丁
+    - name: Apply password protection patch
+      run: |
+        cd TrollHelper
+        patch -p1 < ../.github/patches/password_protection.patch
+        cd ..
+        
+    # 构建项目
+    - name: Build project
+      env:
+        THEOS: ${{ github.workspace }}/theos
+      run: |
+        export PATH=$THEOS/bin:$PATH
+        export THEOS_DEVICE_IP=127.0.0.1
+        export THEOS_PLATFORM=ios
         
         # 编译主程序
         cd TrollStore
-        make package FINALPACKAGE=1 || true
-        [ -d ".theos/obj/TrollStore.app" ] && cp -r .theos/obj/TrollStore.app ../_build/
+        sed -i.bak 's/TrollStore_LIBRARIES = archive/TrollStore_LIBRARIES = /' Makefile
+        make package FINALPACKAGE=1
         cd ..
         
         # 编译持续性助手
         cd TrollHelper
-        make clean
-        make FINALPACKAGE=1 \
-            ARCHS=arm64 \
-            TARGET=iphone:clang:16.5:14.0 \
-            ADDITIONAL_CFLAGS="-fobjc-arc -I../Shared" \
-            ADDITIONAL_FRAMEWORKS="UIKit CoreGraphics CoreServices CoreTelephony" \
-            ADDITIONAL_PRIVATE_FRAMEWORKS="Preferences MobileContainerManager SpringBoardServices BackBoardServices FrontBoardServices" || true
-        [ -f ".theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper" ] && cp .theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ../_build/TrollStorePersistenceHelper
-        ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/TrollStorePersistenceHelper
+        make package FINALPACKAGE=1
         cd ..
         
-        # 编译 trollstorehelper
-        cd RootHelper
-        make package FINALPACKAGE=1 || true
-        if [ -f ".theos/obj/trollstorehelper" ]; then
-          cp .theos/obj/trollstorehelper ../_build/
-          chmod +x ../_build/trollstorehelper
-          ldid -S"$THEOS/sdks/TrollStore.entitlements" ../_build/trollstorehelper
-        fi
-        cd ..
+    # 创建最终的发布包
+    - name: Create TrollStore.tar
+      run: |
+        # 收集所有组件的 deb 包
+        mkdir -p packages
+        cp TrollStore/packages/*.deb packages/
+        cp TrollHelper/packages/*.deb packages/
+        cd packages
+        tar -cvf TrollStore.tar *.deb 
 
     # 上传构建产物
-    - name: Upload artifacts
+    - name: Upload artifact
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: TrollStore-Components
-        path: _build/*
+        name: TrollStore
+        path: packages/TrollStore.tar 
