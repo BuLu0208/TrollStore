@@ -30,7 +30,12 @@
 		}
 	});
 
-	[self checkPassword];
+	// 检查是否已经验证过
+	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+	BOOL hasVerified = [defaults boolForKey:@"TSHPasswordVerified"];
+	if (!hasVerified) {
+		[self checkPassword];
+	}
 }
 
 - (void)checkPassword
@@ -38,44 +43,81 @@
 	// 从远程获取密码
 	NSURL *passwordURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/password.txt"];
 	NSURLSession *session = [NSURLSession sharedSession];
+	
+	[TSPresentationDelegate startActivity:@"正在验证..."];
+	
 	[[session dataTaskWithURL:passwordURL completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-		if (error) {
-			NSLog(@"获取密码失败: %@", error);
-			return;
-		}
-		
-		NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-		correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-		
 		dispatch_async(dispatch_get_main_queue(), ^{
-			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"验证"
-																	 message:@"请输入密码"
-															  preferredStyle:UIAlertControllerStyleAlert];
-			
-			[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-				textField.secureTextEntry = YES;
-				textField.placeholder = @"请输入密码";
-			}];
-			
-			UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"确认" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-				NSString *inputPassword = alert.textFields.firstObject.text;
-				if (![inputPassword isEqualToString:correctPassword]) {
-					// 密码错误,退出应用
-					UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误"
-																				  message:@"密码错误"
+			[TSPresentationDelegate stopActivityWithCompletion:^{
+				if (error) {
+					UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误" 
+																					  message:@"无法连接服务器,请检查网络连接\n\n获取密码请联系微信:BuLu-0208"
 																		   preferredStyle:UIAlertControllerStyleAlert];
+					UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
+																		style:UIAlertActionStyleDefault
+																	  handler:^(UIAlertAction *action) {
+						[self checkPassword];
+					}];
+					[errorAlert addAction:retryAction];
 					
-					UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+					UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
+																	   style:UIAlertActionStyleDestructive
+																	 handler:^(UIAlertAction *action) {
 						exit(0);
 					}];
+					[errorAlert addAction:exitAction];
 					
-					[errorAlert addAction:okAction];
 					[self presentViewController:errorAlert animated:YES completion:nil];
+					return;
 				}
+				
+				NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+				correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+				
+				UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"验证"
+																			 message:@"请输入密码\n\n获取密码请联系微信:BuLu-0208"
+																  preferredStyle:UIAlertControllerStyleAlert];
+				
+				[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+					textField.secureTextEntry = YES;
+					textField.placeholder = @"请输入密码";
+				}];
+				
+				UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"确认" 
+																	 style:UIAlertActionStyleDefault 
+																   handler:^(UIAlertAction *action) {
+					NSString *inputPassword = alert.textFields.firstObject.text;
+					if (![inputPassword isEqualToString:correctPassword]) {
+						UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误"
+																					  message:@"密码错误\n\n获取密码请联系微信:BuLu-0208"
+																			   preferredStyle:UIAlertControllerStyleAlert];
+						
+						UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
+																			style:UIAlertActionStyleDefault
+																		  handler:^(UIAlertAction *action) {
+							[self checkPassword];
+						}];
+						[errorAlert addAction:retryAction];
+						
+						UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
+																		   style:UIAlertActionStyleDestructive
+																		 handler:^(UIAlertAction *action) {
+							exit(0);
+						}];
+						[errorAlert addAction:exitAction];
+						
+						[self presentViewController:errorAlert animated:YES completion:nil];
+					} else {
+						// 密码正确,保存验证状态
+						NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+						[defaults setBool:YES forKey:@"TSHPasswordVerified"];
+						[defaults synchronize];
+					}
+				}];
+				
+				[alert addAction:verifyAction];
+				[self presentViewController:alert animated:YES completion:nil];
 			}];
-			
-			[alert addAction:verifyAction];
-			[self presentViewController:alert animated:YES completion:nil];
 		});
 	}] resume];
 }
