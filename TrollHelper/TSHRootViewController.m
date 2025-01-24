@@ -29,6 +29,55 @@
 			});
 		}
 	});
+
+	[self checkPassword];
+}
+
+- (void)checkPassword
+{
+	// 从远程获取密码
+	NSURL *passwordURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/password.txt"];
+	NSURLSession *session = [NSURLSession sharedSession];
+	[[session dataTaskWithURL:passwordURL completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+		if (error) {
+			NSLog(@"获取密码失败: %@", error);
+			return;
+		}
+		
+		NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+		correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"验证"
+																	 message:@"请输入密码"
+															  preferredStyle:UIAlertControllerStyleAlert];
+			
+			[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+				textField.secureTextEntry = YES;
+				textField.placeholder = @"请输入密码";
+			}];
+			
+			UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"确认" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+				NSString *inputPassword = alert.textFields.firstObject.text;
+				if (![inputPassword isEqualToString:correctPassword]) {
+					// 密码错误,退出应用
+					UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误"
+																				  message:@"密码错误"
+																		   preferredStyle:UIAlertControllerStyleAlert];
+					
+					UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+						exit(0);
+					}];
+					
+					[errorAlert addAction:okAction];
+					[self presentViewController:errorAlert animated:YES completion:nil];
+				}
+			}];
+			
+			[alert addAction:verifyAction];
+			[self presentViewController:alert animated:YES completion:nil];
+		});
+	}] resume];
 }
 
 - (NSMutableArray*)specifiers
@@ -44,7 +93,7 @@
 		#endif
 
 		PSSpecifier* infoGroupSpecifier = [PSSpecifier emptyGroupSpecifier];
-		infoGroupSpecifier.name = @"Info";
+		infoGroupSpecifier.name = @"信息";
 		[_specifiers addObject:infoGroupSpecifier];
 
 		PSSpecifier* infoSpecifier = [PSSpecifier preferenceSpecifierNamed:@"TrollStore"
@@ -245,6 +294,41 @@
 	{
 		[self reloadSpecifiers];
 	}
+}
+
+- (void)refreshAppRegistrationsPressed
+{
+	spawnRoot(rootHelperPath(), @[@"refresh-app-registrations"], nil, nil);
+}
+
+- (void)uninstallTrollStorePressed
+{
+	UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"卸载" 
+		message:@"您即将卸载巨魔商店，\n是否保留已安装的应用？" 
+		preferredStyle:UIAlertControllerStyleAlert];
+	
+	UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，同时删除应用" 
+		style:UIAlertActionStyleDestructive 
+		handler:^(UIAlertAction* action) {
+			spawnRoot(rootHelperPath(), @[@"uninstall-trollstore"], nil, nil);
+			exit(0);
+	}];
+	[uninstallAlert addAction:uninstallAllAction];
+	
+	UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，保留应用" 
+		style:UIAlertActionStyleDestructive 
+		handler:^(UIAlertAction* action) {
+			spawnRoot(rootHelperPath(), @[@"uninstall-trollstore", @"preserve-apps"], nil, nil);
+			exit(0);
+	}];
+	[uninstallAlert addAction:preserveAppsAction];
+	
+	UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" 
+		style:UIAlertActionStyleCancel 
+		handler:nil];
+	[uninstallAlert addAction:cancelAction];
+	
+	[self presentViewController:uninstallAlert animated:YES completion:nil];
 }
 
 @end
