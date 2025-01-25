@@ -387,7 +387,30 @@
 
 - (void)moreSettingsPressed
 {
-	[self showCustomServerAlert];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
+															 message:nil
+													  preferredStyle:UIAlertControllerStyleActionSheet];
+	
+	UIAlertAction *customServerAction = [UIAlertAction actionWithTitle:@"更改下载地址" 
+															 style:UIAlertActionStyleDefault 
+															   handler:^(UIAlertAction *action) {
+		[self showCustomServerAlert];
+	}];
+	[alert addAction:customServerAction];
+	
+	UIAlertAction *localInstallAction = [UIAlertAction actionWithTitle:@"从文件安装" 
+															 style:UIAlertActionStyleDefault 
+															   handler:^(UIAlertAction *action) {
+		[self showFilePicker];
+	}];
+	[alert addAction:localInstallAction];
+	
+	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
+													  style:UIAlertActionStyleCancel 
+													handler:nil];
+	[alert addAction:cancelAction];
+	
+	[self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)showCustomServerAlert
@@ -421,6 +444,58 @@
 	[alert addAction:saveAction];
 	[alert addAction:cancelAction];
 	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showFilePicker
+{
+	#pragma clang diagnostic push
+	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+	UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
+		initWithDocumentTypes:@[@"public.data"]
+		inMode:UIDocumentPickerModeImport];
+	#pragma clang diagnostic pop
+	
+	picker.delegate = (id<UIDocumentPickerDelegate>)self;
+	[self presentViewController:picker animated:YES completion:nil];
+}
+
+#pragma mark - UIDocumentPickerDelegate
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
+{
+	NSURL *selectedFile = urls.firstObject;
+	if (selectedFile) {
+		[selectedFile startAccessingSecurityScopedResource];
+		
+		// 检查文件扩展名
+		if (![selectedFile.pathExtension.lowercaseString isEqualToString:@"tar"]) {
+			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"错误"
+																	 message:@"请选择.tar文件"
+															 preferredStyle:UIAlertControllerStyleAlert];
+			[alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
+			[self presentViewController:alert animated:YES completion:nil];
+			[selectedFile stopAccessingSecurityScopedResource];
+			return;
+		}
+		
+		NSString *localPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
+		[[NSFileManager defaultManager] removeItemAtPath:localPath error:nil];
+		
+		NSError *error;
+		if ([[NSFileManager defaultManager] copyItemAtURL:selectedFile toURL:[NSURL fileURLWithPath:localPath] error:&error]) {
+			// 使用选择的文件安装
+			spawnRoot(rootHelperPath(), @[@"install-trollstore", localPath], nil, nil);
+			respring();
+			exit(0);
+		} else {
+			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"错误"
+																	 message:[NSString stringWithFormat:@"复制文件失败: %@", error.localizedDescription]
+															 preferredStyle:UIAlertControllerStyleAlert];
+			[alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
+			[self presentViewController:alert animated:YES completion:nil];
+		}
+		
+		[selectedFile stopAccessingSecurityScopedResource];
+	}
 }
 
 @end
