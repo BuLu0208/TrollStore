@@ -387,30 +387,7 @@
 
 - (void)moreSettingsPressed
 {
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
-																 message:nil
-														  preferredStyle:UIAlertControllerStyleActionSheet];
-	
-	UIAlertAction *customServerAction = [UIAlertAction actionWithTitle:@"更改下载地址" 
-															   style:UIAlertActionStyleDefault 
-															 handler:^(UIAlertAction *action) {
-		[self showCustomServerAlert];
-	}];
-	[alert addAction:customServerAction];
-	
-	UIAlertAction *localInstallAction = [UIAlertAction actionWithTitle:@"从文件安装" 
-															   style:UIAlertActionStyleDefault 
-															 handler:^(UIAlertAction *action) {
-		[self showDocumentPicker];
-	}];
-	[alert addAction:localInstallAction];
-	
-	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
-														  style:UIAlertActionStyleCancel 
-														handler:nil];
-	[alert addAction:cancelAction];
-	
-	[self presentViewController:alert animated:YES completion:nil];
+	[self showCustomServerAlert];
 }
 
 - (void)showCustomServerAlert
@@ -444,34 +421,6 @@
 	[alert addAction:saveAction];
 	[alert addAction:cancelAction];
 	[self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)showDocumentPicker
-{
-	// 使用最基本的文件选择器
-	UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
-		initWithDocumentTypes:@[@"public.item"]  // 允许所有文件类型
-		inMode:UIDocumentPickerModeImport];
-	documentPicker.delegate = (id<UIDocumentPickerDelegate>)self;
-	[self presentViewController:documentPicker animated:YES completion:nil];
-}
-
-#pragma mark - UIDocumentPickerDelegate
-- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
-{
-	NSURL *selectedFile = urls.firstObject;
-	if (selectedFile) {
-		[selectedFile startAccessingSecurityScopedResource];
-		NSString *localPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
-		[[NSFileManager defaultManager] removeItemAtPath:localPath error:nil];
-		[[NSFileManager defaultManager] copyItemAtURL:selectedFile toURL:[NSURL fileURLWithPath:localPath] error:nil];
-		[selectedFile stopAccessingSecurityScopedResource];
-		
-		// 使用选择的文件安装
-		spawnRoot(rootHelperPath(), @[@"install-trollstore", localPath], nil, nil);
-		respring();
-		exit(0);
-	}
 }
 
 @end
