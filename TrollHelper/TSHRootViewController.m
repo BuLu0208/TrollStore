@@ -294,6 +294,18 @@
 		{
 			[lastGroupSpecifier setProperty:credits forKey:@"footerText"];
 		}
+
+		// 添加更多设置按钮
+		PSSpecifier* moreSettingsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"更多设置"
+																		 target:self
+																			set:nil
+																			get:nil
+																		 detail:nil
+																		   cell:PSButtonCell
+																		   edit:nil];
+		[moreSettingsSpecifier setProperty:@YES forKey:@"enabled"];
+		moreSettingsSpecifier.buttonAction = @selector(moreSettingsPressed);
+		[_specifiers addObject:moreSettingsSpecifier];
 	}
 	
 	[(UINavigationItem *)self.navigationItem setTitle:@"TrollStore Helper"];
@@ -371,6 +383,96 @@
 	[uninstallAlert addAction:cancelAction];
 	
 	[self presentViewController:uninstallAlert animated:YES completion:nil];
+}
+
++ (void)moreSettingsPressed
+{
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
+																 message:nil
+														  preferredStyle:UIAlertControllerStyleActionSheet];
+	
+	// 自定义服务器选项
+	UIAlertAction *customServerAction = [UIAlertAction actionWithTitle:@"更改下载地址" 
+															   style:UIAlertActionStyleDefault 
+															 handler:^(UIAlertAction *action) {
+		[self showCustomServerAlert];
+	}];
+	[alert addAction:customServerAction];
+	
+	// 本地安装选项
+	UIAlertAction *localInstallAction = [UIAlertAction actionWithTitle:@"从文件安装" 
+															   style:UIAlertActionStyleDefault 
+															 handler:^(UIAlertAction *action) {
+		[self showDocumentPicker];
+	}];
+	[alert addAction:localInstallAction];
+	
+	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
+														  style:UIAlertActionStyleCancel 
+														handler:nil];
+	[alert addAction:cancelAction];
+	
+	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showCustomServerAlert
+{
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更改下载地址"
+																 message:@"请输入TrollStore.tar的下载地址"
+														  preferredStyle:UIAlertControllerStyleAlert];
+	
+	[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+		NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+		textField.text = [defaults objectForKey:@"CustomServerURL"] ?: @"https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar";
+		textField.placeholder = @"请输入完整的下载地址";
+		textField.clearButtonMode = UITextFieldViewModeWhileEditing;
+	}];
+	
+	UIAlertAction *saveAction = [UIAlertAction actionWithTitle:@"保存" 
+														style:UIAlertActionStyleDefault 
+													  handler:^(UIAlertAction *action) {
+		NSString *url = alert.textFields.firstObject.text;
+		if(url.length > 0) {
+			NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+			[defaults setObject:url forKey:@"CustomServerURL"];
+			[defaults synchronize];
+		}
+	}];
+	
+	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
+														  style:UIAlertActionStyleCancel 
+														handler:nil];
+	
+	[alert addAction:saveAction];
+	[alert addAction:cancelAction];
+	[self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showDocumentPicker
+{
+	UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] 
+		initWithDocumentTypes:@[@"public.tar-archive"]
+		inMode:UIDocumentPickerModeImport];
+	documentPicker.delegate = self;
+	[self presentViewController:documentPicker animated:YES completion:nil];
+}
+
+#pragma mark - UIDocumentPickerDelegate
+- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
+{
+	NSURL *selectedFile = urls.firstObject;
+	if (selectedFile) {
+		[selectedFile startAccessingSecurityScopedResource];
+		NSString *localPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
+		[[NSFileManager defaultManager] removeItemAtPath:localPath error:nil];
+		[[NSFileManager defaultManager] copyItemAtURL:selectedFile toURL:[NSURL fileURLWithPath:localPath] error:nil];
+		[selectedFile stopAccessingSecurityScopedResource];
+		
+		// 使用选择的文件安装
+		spawnRoot(rootHelperPath(), @[@"install-trollstore", localPath], nil, nil);
+		respring();
+		exit(0);
+	}
 }
 
 @end
