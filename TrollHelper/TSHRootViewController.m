@@ -385,7 +385,7 @@
 	[self presentViewController:uninstallAlert animated:YES completion:nil];
 }
 
-+ (void)moreSettingsPressed
+- (void)moreSettingsPressed
 {
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
 																 message:nil
@@ -450,9 +450,15 @@
 
 - (void)showDocumentPicker
 {
-	UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] 
-		initWithDocumentTypes:@[@"public.tar-archive"]
-		inMode:UIDocumentPickerModeImport];
+	UIDocumentPickerViewController *documentPicker;
+	if (@available(iOS 14.0, *)) {
+		documentPicker = [[UIDocumentPickerViewController alloc] 
+			initForOpeningContentTypes:@[UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, CFSTR("tar"), NULL)]];
+	} else {
+		documentPicker = [[UIDocumentPickerViewController alloc] 
+			initWithDocumentTypes:@[@"public.tar-archive"]
+			inMode:UIDocumentPickerModeImport];
+	}
 	documentPicker.delegate = self;
 	[self presentViewController:documentPicker animated:YES completion:nil];
 }
