@@ -1,5 +1,5 @@
-#import <MobileCoreServices/MobileCoreServices.h>
-#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+@import MobileCoreServices;
+@import UniformTypeIdentifiers;
 #import "TSHRootViewController.h"
 #import <TSUtil.h>
 #import <TSPresentationDelegate.h>
@@ -393,7 +393,6 @@
 																 message:nil
 														  preferredStyle:UIAlertControllerStyleActionSheet];
 	
-	// 自定义服务器选项
 	UIAlertAction *customServerAction = [UIAlertAction actionWithTitle:@"更改下载地址" 
 															   style:UIAlertActionStyleDefault 
 															 handler:^(UIAlertAction *action) {
@@ -401,7 +400,6 @@
 	}];
 	[alert addAction:customServerAction];
 	
-	// 本地安装选项
 	UIAlertAction *localInstallAction = [UIAlertAction actionWithTitle:@"从文件安装" 
 															   style:UIAlertActionStyleDefault 
 															 handler:^(UIAlertAction *action) {
@@ -454,11 +452,13 @@
 {
 	UIDocumentPickerViewController *documentPicker;
 	if (@available(iOS 14.0, *)) {
-		NSArray *types = @[(NSString *)kUTTypeArchive];
-		documentPicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:[NSArray arrayWithObject:[UTType typeWithIdentifier:types.firstObject]]];
+		if (@available(iOS 14.0, *)) {
+			documentPicker = [[UIDocumentPickerViewController alloc] 
+				initForOpeningContentTypes:@[UTTypeData, UTTypeArchive]];
+		}
 	} else {
-		documentPicker = [[UIDocumentPickerViewController alloc] 
-			initWithDocumentTypes:@[(NSString *)kUTTypeArchive]
+		documentPicker = [[UIDocumentPickerViewController alloc]
+			initWithDocumentTypes:@[@"public.data", @"com.apple.archive"]
 			inMode:UIDocumentPickerModeImport];
 	}
 	documentPicker.delegate = (id<UIDocumentPickerDelegate>)self;
