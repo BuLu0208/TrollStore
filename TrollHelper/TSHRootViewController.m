@@ -1,5 +1,3 @@
-@import MobileCoreServices;
-@import UniformTypeIdentifiers;
 #import "TSHRootViewController.h"
 #import <TSUtil.h>
 #import <TSPresentationDelegate.h>
@@ -450,17 +448,10 @@
 
 - (void)showDocumentPicker
 {
-	UIDocumentPickerViewController *documentPicker;
-	if (@available(iOS 14.0, *)) {
-		if (@available(iOS 14.0, *)) {
-			documentPicker = [[UIDocumentPickerViewController alloc] 
-				initForOpeningContentTypes:@[UTTypeData, UTTypeArchive]];
-		}
-	} else {
-		documentPicker = [[UIDocumentPickerViewController alloc]
-			initWithDocumentTypes:@[@"public.data", @"com.apple.archive"]
-			inMode:UIDocumentPickerModeImport];
-	}
+	// 使用最基本的文件选择器
+	UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc]
+		initWithDocumentTypes:@[@"public.item"]  // 允许所有文件类型
+		inMode:UIDocumentPickerModeImport];
 	documentPicker.delegate = (id<UIDocumentPickerDelegate>)self;
 	[self presentViewController:documentPicker animated:YES completion:nil];
 }
