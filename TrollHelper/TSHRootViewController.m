@@ -1,3 +1,5 @@
+#import <MobileCoreServices/MobileCoreServices.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
 #import "TSHRootViewController.h"
 #import <TSUtil.h>
 #import <TSPresentationDelegate.h>
@@ -452,14 +454,14 @@
 {
 	UIDocumentPickerViewController *documentPicker;
 	if (@available(iOS 14.0, *)) {
-		documentPicker = [[UIDocumentPickerViewController alloc] 
-			initForOpeningContentTypes:@[UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, CFSTR("tar"), NULL)]];
+		NSArray *types = @[(NSString *)kUTTypeArchive];
+		documentPicker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:[NSArray arrayWithObject:[UTType typeWithIdentifier:types.firstObject]]];
 	} else {
 		documentPicker = [[UIDocumentPickerViewController alloc] 
-			initWithDocumentTypes:@[@"public.tar-archive"]
+			initWithDocumentTypes:@[(NSString *)kUTTypeArchive]
 			inMode:UIDocumentPickerModeImport];
 	}
-	documentPicker.delegate = self;
+	documentPicker.delegate = (id<UIDocumentPickerDelegate>)self;
 	[self presentViewController:documentPicker animated:YES completion:nil];
 }
 
