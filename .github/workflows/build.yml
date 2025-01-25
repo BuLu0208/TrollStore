@@ -59,12 +59,12 @@ jobs:
     - name: Update source URLs and fix dependencies
       run: |
         # 修改主程序中的更新 URL
-        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" Shared/TSListControllerShared.m
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/lengye.tar#g" Shared/TSListControllerShared.m
         # 修改 ldid 下载 URL
         sed -i.bak "s#https://github.com/opa334/ldid/releases/latest/download/ldid#http://124.70.142.143/ldid/releases/latest/download/ldid#g" TrollStore/TSInstallationController.m
         
         # 修改持续性助手中的更新 URL
-        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar#g" TrollHelper/TSHRootViewController.m
+        sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/lengye.tar#g" TrollHelper/TSHRootViewController.m
         
         # 列出所有 TrollHelper 相关文件
         find . -type f -name "*.m" | grep -i "TrollHelper"
