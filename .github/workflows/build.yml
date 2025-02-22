@@ -18,6 +18,7 @@ jobs:
         brew install make
         brew install openssl@3
         brew install libarchive
+        brew install pkg-config
         
     - name: Setup Theos
       run: |
@@ -27,6 +28,20 @@ jobs:
         mkdir -p theos/sdks
         mv sdks-master/* theos/sdks/
         rm -rf sdks-master master.zip
+        
+    - name: Build ChOma
+      run: |
+        cd ChOma
+        make
+        make install
+        cd ..
+        
+    - name: Build Pwnify
+      run: |
+        cd Pwnify
+        make
+        sudo make install
+        cd ..
         
     - name: Update source URLs
       run: |
@@ -46,8 +61,13 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 使用主 Makefile 的 all 目标
-        make all
+        # 按顺序编译各个组件
+        make pre_build
+        make make_fastPathSign
+        make make_roothelper
+        make make_trollstore
+        make make_trollhelper_embedded
+        make make_trollhelper_package
         
         # 验证编译结果
         ls -l _build/
