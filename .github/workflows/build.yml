@@ -75,8 +75,9 @@ jobs:
         make make_trollhelper_embedded MAKECMDGOALS=all
         make make_trollhelper_package MAKECMDGOALS=all
         make assemble_trollstore
-        make build_installer15
-        make build_installer64e
+        # 跳过这些需要 InstallerVictim.ipa 的步骤
+        # make build_installer15
+        # make build_installer64e
         make make_trollstore_lite MAKECMDGOALS=all
         
         # 验证编译结果
@@ -90,3 +91,13 @@ jobs:
           _build/
           TrollStore/packages/*.deb
           TrollHelper/packages/*.deb
+
+    - name: Prepare Victim
+      run: |
+        mkdir -p Victim
+        cd Victim
+        # 创建一个最小的 IPA 文件结构
+        mkdir -p Payload/Example.app
+        touch Payload/Example.app/Example
+        zip -r InstallerVictim.ipa Payload
+        cd ..
