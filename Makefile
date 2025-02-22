@@ -26,23 +26,24 @@ make_trollhelper_package:
 	@rm ./TrollHelper/Resources/trollstorehelper
 
 make_trollhelper_embedded:
+	@rm -rf ./_build/tmp15 ./_build/tmp64e 2>/dev/null || true
 	@mkdir -p ./_build/tmp15 ./_build/tmp64e
-	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
-	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	# 编译标准版本
+	@unzip -q ./Victim/InstallerVictim.ipa -d ./_build/tmp15
+	@unzip -q ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
+	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 $(MAKECMDGOALS)
 	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/PersistenceHelper_Embedded
 	
-	# 编译 Legacy arm64 版本
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
+	@rm -rf ./_build/tmp15/Payload/Runner.app/*
 	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
 	
-	# 编译 arm64e 版本
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
+	@rm -rf ./_build/tmp64e/Payload/Runner.app/*
 	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
 
 assemble_trollstore:
@@ -52,26 +53,24 @@ assemble_trollstore:
 	@tar -czvf ./_build/TrollStore.tar -C ./TrollStore/.theos/obj TrollStore.app
 
 build_installer15:
-	# 重新签名
-	@echo "重新签名..."
+	@echo "重新签名 iOS15 版本..."
 	@ldid -S ./_build/tmp15/Payload/Runner.app/Runner
 	
-	# 打包 iOS15 版本
+	@echo "打包 iOS15 版本..."
 	@pushd ./_build/tmp15 ; \
-	zip -vrD ../../_build/TrollHelper_iOS15.ipa * ; \
+	zip -qvrD ../../_build/TrollHelper_iOS15.ipa * ; \
 	popd
-	@rm -rf ./_build/tmp15
 
 build_installer64e:
-	# 重新签名
-	@echo "重新签名..."
+	@echo "重新签名 arm64e 版本..."
 	@ldid -S ./_build/tmp64e/Payload/Runner.app/Runner
 	
-	# 打包 arm64e 版本
+	@echo "打包 arm64e 版本..."
 	@pushd ./_build/tmp64e ; \
-	zip -vrD ../../_build/TrollHelper_arm64e.ipa * ; \
+	zip -qvrD ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
-	@rm -rf ./_build/tmp64e
+	
+	@rm -rf ./_build/tmp15 ./_build/tmp64e
 
 make_trollstore_lite:
 	@$(MAKE) -C ./RootHelper DEBUG=0 TROLLSTORE_LITE=1
