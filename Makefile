@@ -48,7 +48,7 @@ build_installer15:
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/TrollStorePersistenceHelperToInject
 	@pwnify set-cpusubtype ./_build/TrollStorePersistenceHelperToInject 1
-	@ldid -s -K./Victim/victim.p12 ./_build/TrollStorePersistenceHelperToInject
+	@ldid -S ./_build/TrollStorePersistenceHelperToInject
 	APP_PATH=$$(find ./_build/tmp15/Payload -name "*" -depth 1) ; \
 	APP_NAME=$$(basename $$APP_PATH) ; \
 	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \

@@ -54,22 +54,11 @@ jobs:
         # 修改持续性助手中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/lengye21.tar#g" TrollHelper/TSHRootViewController.m
         
-    - name: Prepare Victim and Certificate
+    - name: Prepare Victim
       run: |
         mkdir -p Victim
-        # 下载 GTA Car Tracker
+        # 下载 GTA Car Tracker 作为基础应用
         curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o Victim/InstallerVictim.ipa
-        
-        # 提取签名证书
-        mkdir -p tmp_extract
-        cd tmp_extract
-        unzip ../Victim/InstallerVictim.ipa
-        # 从 embedded.mobileprovision 提取证书
-        security cms -D -i "Payload/Runner.app/embedded.mobileprovision" > profile.plist
-        /usr/libexec/PlistBuddy -x -c "Print :DeveloperCertificates:0" profile.plist > victim.p12
-        mv victim.p12 ../Victim/
-        cd ..
-        rm -rf tmp_extract
         
     - name: Build project
       env:
@@ -99,7 +88,6 @@ jobs:
         
         make make_trollstore_lite MAKECMDGOALS=all
         
-        
         # 验证编译结果
         ls -l _build/
         
@@ -111,10 +99,4 @@ jobs:
           _build/
           TrollStore/packages/*.deb
           TrollHelper/packages/*.deb
-
-    - name: Prepare Victim
-      run: |
-        mkdir -p Victim
-        # 将您提供的 GTA Car Tracker.ipa 复制为 InstallerVictim.ipa
-        cp path/to/GTA_Car_Tracker.ipa Victim/InstallerVictim.ipa
         
