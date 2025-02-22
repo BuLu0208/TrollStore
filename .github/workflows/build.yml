@@ -119,7 +119,7 @@ jobs:
       with:
         name: TrollStore-Build
         path: |
-          _build/                      # 主要构建产物
-          TrollStore/packages/*.deb    # TrollStore 安装包
-          TrollHelper/packages/*.deb   # TrollHelper 安装包
+          _build/TrollHelper_iOS15.ipa
+          _build/TrollHelper_arm64e.ipa
+          _build/TrollStore.tar
         
