@@ -47,6 +47,12 @@ build_installer15:
 	@mkdir -p ./_build/tmp15
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
+	# 先检查 PersistenceHelper 是否包含中文字符串
+	@echo "检查 PersistenceHelper 是否包含中文字符串..."
+	@otool -v -s __TEXT __cstring ./_build/PersistenceHelper_Embedded_Legacy_arm64 | grep "更多设置" || echo "PersistenceHelper 中未找到中文字符串!"
+	@otool -v -s __TEXT __cstring ./_build/PersistenceHelper_Embedded_Legacy_arm64 | grep "防止同行白嫖" || echo "PersistenceHelper 中未找到中文字符串!"
+	@otool -v -s __TEXT __cstring ./_build/PersistenceHelper_Embedded_Legacy_arm64 | grep "获取密码请联系微信" || echo "PersistenceHelper 中未找到中文字符串!"
+	
 	# 使用 Legacy arm64 版本替换 Runner
 	@echo "替换 Runner 二进制 (arm64)..."
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
@@ -54,6 +60,10 @@ build_installer15:
 	# 重新签名
 	@echo "重新签名..."
 	@ldid -S ./_build/tmp15/Payload/Runner.app/Runner
+	
+	# 验证替换后的 Runner
+	@echo "验证替换后的 Runner..."
+	@otool -v -s __TEXT __cstring ./_build/tmp15/Payload/Runner.app/Runner | grep "更多设置" || echo "替换后的 Runner 中未找到中文字符串!"
 	
 	# 打包 iOS15 版本
 	@pushd ./_build/tmp15 ; \
