@@ -38,13 +38,11 @@ make_trollhelper_embedded:
 	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
-	@rm -rf ./_build/tmp15/Payload/Runner.app/*
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
+	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/tmp15/Payload/Runner.app/Runner
 	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
-	@rm -rf ./_build/tmp64e/Payload/Runner.app/*
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
+	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/tmp64e/Payload/Runner.app/Runner
 
 assemble_trollstore:
 	@cp ./RootHelper/.theos/obj/trollstorehelper ./TrollStore/.theos/obj/TrollStore.app/trollstorehelper
