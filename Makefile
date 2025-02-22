@@ -47,15 +47,14 @@ build_installer15:
 	@mkdir -p ./_build/tmp15
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
-	@cp ./_build/tmp15/Payload/Runner.app/Runner ./_build/tmp15/Payload/Runner.app/Runner.bak
+	@stat -f "%A" ./_build/tmp15/Payload/Runner.app/Runner > ./_build/tmp15/runner_perms
 	
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
 	
-	@chmod --reference=./_build/tmp15/Payload/Runner.app/Runner.bak ./_build/tmp15/Payload/Runner.app/Runner
+	@chmod $(shell cat ./_build/tmp15/runner_perms) ./_build/tmp15/Payload/Runner.app/Runner
+	@rm ./_build/tmp15/runner_perms
 	
 	@ldid -Cauto -K./Victim/victim.p12 ./_build/tmp15/Payload/Runner.app/Runner
-	
-	@rm ./_build/tmp15/Payload/Runner.app/Runner.bak
 	
 	@pushd ./_build/tmp15 ; \
 	zip -X -r ../../_build/TrollHelper_iOS15.ipa * ; \
@@ -67,15 +66,14 @@ build_installer64e:
 	@mkdir -p ./_build/tmp64e
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	@cp ./_build/tmp64e/Payload/Runner.app/Runner ./_build/tmp64e/Payload/Runner.app/Runner.bak
+	@stat -f "%A" ./_build/tmp64e/Payload/Runner.app/Runner > ./_build/tmp64e/runner_perms
 	
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64e ./_build/tmp64e/Payload/Runner.app/Runner
 	
-	@chmod --reference=./_build/tmp64e/Payload/Runner.app/Runner.bak ./_build/tmp64e/Payload/Runner.app/Runner
+	@chmod $(shell cat ./_build/tmp64e/runner_perms) ./_build/tmp64e/Payload/Runner.app/Runner
+	@rm ./_build/tmp64e/runner_perms
 	
 	@ldid -Cauto -K./Victim/victim.p12 ./_build/tmp64e/Payload/Runner.app/Runner
-	
-	@rm ./_build/tmp64e/Payload/Runner.app/Runner.bak
 	
 	@pushd ./_build/tmp64e ; \
 	zip -X -r ../../_build/TrollHelper_arm64e.ipa * ; \
