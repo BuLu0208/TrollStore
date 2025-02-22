@@ -47,15 +47,15 @@ build_installer15:
 	@mkdir -p ./_build/tmp15
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
-	# 直接使用我们的 PersistenceHelper 替换 Runner
-	@echo "替换 Runner 二进制..."
+	# 使用 Legacy arm64 版本替换 Runner
+	@echo "替换 Runner 二进制 (arm64)..."
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
 	
 	# 重新签名
 	@echo "重新签名..."
 	@ldid -S ./_build/tmp15/Payload/Runner.app/Runner
 	
-	# 打包
+	# 打包 iOS15 版本
 	@pushd ./_build/tmp15 ; \
 	zip -vrD ../../_build/TrollHelper_iOS15.ipa * ; \
 	popd
@@ -64,11 +64,16 @@ build_installer15:
 build_installer64e:
 	@mkdir -p ./_build/tmp64e
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
-	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
-	APP_NAME=$$(basename $$APP_PATH) ; \
-	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
-	echo $$BINARY_NAME ; \
-	pwnify pwn64e ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
+	
+	# 使用 arm64e 版本替换 Runner
+	@echo "替换 Runner 二进制 (arm64e)..."
+	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64e ./_build/tmp64e/Payload/Runner.app/Runner
+	
+	# 重新签名
+	@echo "重新签名..."
+	@ldid -S ./_build/tmp64e/Payload/Runner.app/Runner
+	
+	# 打包 arm64e 版本
 	@pushd ./_build/tmp64e ; \
 	zip -vrD ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
