@@ -83,9 +83,11 @@ jobs:
         flutter build ios --release --no-codesign
         
         # 手动创建 IPA
+        mkdir -p ../Victim  # 确保 Victim 目录存在
         cd build/ios/iphoneos
         mkdir -p Payload
         cp -r Runner.app Payload/
+        mkdir -p ../../../Victim  # 再次确保目录存在
         zip -r ../../../Victim/InstallerVictim.ipa Payload
         cd ../../..
         
