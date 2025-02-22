@@ -63,8 +63,21 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 直接使用 all 目标，它会按正确顺序调用所有子目标
-        make all
+        # 首先构建 fastPathSign
+        cd Exploits/fastPathSign
+        make
+        cd ../..
+        
+        # 然后按顺序构建其他组件
+        make pre_build
+        make make_roothelper
+        make make_trollstore
+        make make_trollhelper_embedded
+        make make_trollhelper_package
+        make assemble_trollstore
+        make build_installer15
+        make build_installer64e
+        make make_trollstore_lite
         
         # 验证编译结果
         ls -l _build/
