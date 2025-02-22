@@ -11,6 +11,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
     
     - name: Install dependencies
       run: |
@@ -29,8 +31,9 @@ jobs:
         mv sdks-master/* theos/sdks/
         rm -rf sdks-master master.zip
         
-    - name: Build ChOma
+    - name: Setup ChOma
       run: |
+        git clone https://github.com/opa334/ChOma.git
         cd ChOma
         make
         make install
