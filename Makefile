@@ -38,11 +38,19 @@ make_trollhelper_embedded:
 	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
-	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/tmp15/Payload/Runner.app/Runner
+	@mv ./_build/tmp15/Payload/Runner.app/Info.plist ./_build/tmp15/Info.plist.bak
+	@mv ./_build/tmp15/Payload/Runner.app/AppIcon* ./_build/tmp15/
+	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
+	@mv ./_build/tmp15/Info.plist.bak ./_build/tmp15/Payload/Runner.app/Info.plist
+	@mv ./_build/tmp15/AppIcon* ./_build/tmp15/Payload/Runner.app/
 	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
-	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/tmp64e/Payload/Runner.app/Runner
+	@mv ./_build/tmp64e/Payload/Runner.app/Info.plist ./_build/tmp64e/Info.plist.bak
+	@mv ./_build/tmp64e/Payload/Runner.app/AppIcon* ./_build/tmp64e/
+	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
+	@mv ./_build/tmp64e/Info.plist.bak ./_build/tmp64e/Payload/Runner.app/Info.plist
+	@mv ./_build/tmp64e/AppIcon* ./_build/tmp64e/Payload/Runner.app/
 
 assemble_trollstore:
 	@cp ./RootHelper/.theos/obj/trollstorehelper ./TrollStore/.theos/obj/TrollStore.app/trollstorehelper
