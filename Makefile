@@ -54,14 +54,15 @@ build_installer15:
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/TrollStorePersistenceHelperToInject
 	# 设置 CPU 子类型为 arm64,确保兼容性
 	@pwnify set-cpusubtype ./_build/TrollStorePersistenceHelperToInject 1
-	# 使用受害者证书对注入文件进行签名
-	@ldid -s -K./Victim/victim.p12 ./_build/TrollStorePersistenceHelperToInject
+	
+	# 创建临时权限文件
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp15/entitlements.xml
+	
+	# 使用权限文件进行签名
+	@ldid -S./_build/tmp15/entitlements.xml ./_build/TrollStorePersistenceHelperToInject
+	@rm ./_build/tmp15/entitlements.xml
 	
 	# 查找并替换目标应用的二进制文件
-	# 1. 查找 Payload 目录下的应用目录
-	# 2. 获取应用目录名称
-	# 3. 提取应用二进制文件名
-	# 4. 使用 pwnify 工具注入持久化助手
 	APP_PATH=$$(find ./_build/tmp15/Payload -name "*" -depth 1) ; \
 	APP_NAME=$$(basename $$APP_PATH) ; \
 	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
@@ -84,8 +85,10 @@ build_installer64e:
 	# 解压基础 IPA 文件到临时目录
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
+	# 创建临时权限文件
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp64e/entitlements.xml
+	
 	# 查找并替换目标应用的二进制文件(arm64e 版本)
-	# 使用相同的查找逻辑,但使用 arm64e 特定的注入命令
 	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
 	APP_NAME=$$(basename $$APP_PATH) ; \
 	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
