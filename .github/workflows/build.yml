@@ -60,6 +60,9 @@ jobs:
     # 准备基础 IPA 文件
     - name: Prepare Victim IPA
       run: |
+        # 保存当前工作目录
+        WORK_DIR=$PWD
+        
         # 安装 Flutter 和 Java 17
         brew install flutter
         brew install openjdk@17
@@ -83,13 +86,14 @@ jobs:
         flutter build ios --release --no-codesign
         
         # 手动创建 IPA
-        mkdir -p ../Victim  # 确保 Victim 目录存在
+        mkdir -p $WORK_DIR/Victim
         cd build/ios/iphoneos
         mkdir -p Payload
         cp -r Runner.app Payload/
-        mkdir -p ../../../Victim  # 再次确保目录存在
-        zip -r ../../../Victim/InstallerVictim.ipa Payload
-        cd ../../..
+        zip -r $WORK_DIR/Victim/InstallerVictim.ipa Payload
+        
+        # 返回工作目录
+        cd $WORK_DIR
         
         # 验证 IPA 文件
         ls -l Victim/InstallerVictim.ipa
@@ -99,8 +103,10 @@ jobs:
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
+        # 确保 Victim 目录和 IPA 文件存在
+        ls -l Victim/InstallerVictim.ipa
+        
         set -e
-        # 设置环境变量
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
