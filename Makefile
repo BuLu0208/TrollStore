@@ -26,16 +26,21 @@ make_trollhelper_package:
 	@rm ./TrollHelper/Resources/trollstorehelper
 
 make_trollhelper_embedded:
+	@mkdir -p ./_build/tmp15 ./_build/tmp64e
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
+	
+	# 编译标准版本
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 $(MAKECMDGOALS)
 	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/PersistenceHelper_Embedded
 	
-	# 编译 Legacy arm64 版本时需要复制整个 .app 目录
+	# 编译 Legacy arm64 版本
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
 	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
 	
-	# 编译 arm64e 版本时也需要复制整个 .app 目录
+	# 编译 arm64e 版本
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
 	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
@@ -47,15 +52,6 @@ assemble_trollstore:
 	@tar -czvf ./_build/TrollStore.tar -C ./TrollStore/.theos/obj TrollStore.app
 
 build_installer15:
-	@mkdir -p ./_build/tmp15
-	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
-	
-	# 复制整个 TrollStorePersistenceHelper.app 的内容到 Runner.app
-	@echo "替换 Runner.app 内容 (arm64)..."
-	@$(MAKE) -C ./TrollHelper clean
-	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
-	
 	# 重新签名
 	@echo "重新签名..."
 	@ldid -S ./_build/tmp15/Payload/Runner.app/Runner
@@ -67,15 +63,6 @@ build_installer15:
 	@rm -rf ./_build/tmp15
 
 build_installer64e:
-	@mkdir -p ./_build/tmp64e
-	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
-	
-	# 复制整个 TrollStorePersistenceHelper.app 的内容到 Runner.app
-	@echo "替换 Runner.app 内容 (arm64e)..."
-	@$(MAKE) -C ./TrollHelper clean
-	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
-	
 	# 重新签名
 	@echo "重新签名..."
 	@ldid -S ./_build/tmp64e/Payload/Runner.app/Runner
