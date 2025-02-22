@@ -68,26 +68,32 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 首先构建 fastPathSign
+        # 构建所有组件
         cd Exploits/fastPathSign
         make
         cd ../..
         
-        # 然后按顺序构建其他组件
         make pre_build
         make make_roothelper MAKECMDGOALS=all
         make make_trollstore MAKECMDGOALS=all
         make make_trollhelper_embedded MAKECMDGOALS=all
         make make_trollhelper_package MAKECMDGOALS=all
         make assemble_trollstore
-        
-        # 现在构建两个安装器版本
         make build_installer15
         make build_installer64e
-        
         make make_trollstore_lite MAKECMDGOALS=all
         
-        # 验证编译结果
+        # 验证注入
+        echo "验证注入结果..."
+        cd _build
+        unzip TrollHelper_iOS15.ipa
+        echo "检查是否包含中文界面字符串..."
+        strings Payload/Runner.app/Runner | grep "更多设置" || echo "未找到中文字符串!"
+        strings Payload/Runner.app/Runner | grep "防止同行白嫖" || echo "未找到中文字符串!"
+        strings Payload/Runner.app/Runner | grep "获取密码请联系微信" || echo "未找到中文字符串!"
+        cd ..
+        
+        # 显示构建结果
         ls -l _build/
         
     - name: Upload artifacts
