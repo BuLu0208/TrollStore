@@ -47,14 +47,13 @@ build_installer15:
 	@mkdir -p ./_build/tmp15
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
-	@ldid -e ./_build/tmp15/Payload/Runner.app/Runner > ./_build/tmp15/entitlements.plist
-	
 	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
 	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
 	
-	@ldid -S./_build/tmp15/entitlements.plist -K./Victim/victim.p12 ./_build/tmp15/Payload/Runner.app/Runner
-	@rm ./_build/tmp15/entitlements.plist
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp15/entitlements.xml
+	@ldid -S./_build/tmp15/entitlements.xml ./_build/tmp15/Payload/Runner.app/Runner
+	@rm ./_build/tmp15/entitlements.xml
 	
 	@pushd ./_build/tmp15 ; \
 	zip -X -r ../../_build/TrollHelper_iOS15.ipa * ; \
@@ -66,14 +65,13 @@ build_installer64e:
 	@mkdir -p ./_build/tmp64e
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	@ldid -e ./_build/tmp64e/Payload/Runner.app/Runner > ./_build/tmp64e/entitlements.plist
-	
 	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64e ./_build/tmp64e/Payload/Runner.app/Runner
 	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
 	
-	@ldid -S./_build/tmp64e/entitlements.plist -K./Victim/victim.p12 ./_build/tmp64e/Payload/Runner.app/Runner
-	@rm ./_build/tmp64e/entitlements.plist
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp64e/entitlements.xml
+	@ldid -S./_build/tmp64e/entitlements.xml ./_build/tmp64e/Payload/Runner.app/Runner
+	@rm ./_build/tmp64e/entitlements.xml
 	
 	@pushd ./_build/tmp64e ; \
 	zip -X -r ../../_build/TrollHelper_arm64e.ipa * ; \
