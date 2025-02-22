@@ -46,13 +46,8 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 编译所有组件
-        make pre_build
-        make make_fastPathSign
-        make make_roothelper
-        make make_trollstore
-        make make_trollhelper_embedded
-        make make_trollhelper_package
+        # 使用主 Makefile 的 all 目标
+        make all
         
         # 验证编译结果
         ls -l _build/
