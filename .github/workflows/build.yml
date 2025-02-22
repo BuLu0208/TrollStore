@@ -57,6 +57,25 @@ jobs:
         sudo make install
         cd ..
         
+    # 准备基础 IPA 文件
+    - name: Prepare Victim IPA
+      run: |
+        # 安装 Flutter
+        brew install flutter
+        flutter doctor
+        
+        # 创建临时 Flutter 项目
+        flutter create victim_app
+        cd victim_app
+        
+        # 编译 IPA
+        flutter build ipa --release --no-codesign
+        
+        # 复制到 Victim 目录
+        mkdir -p ../Victim
+        cp build/ios/ipa/victim_app.ipa ../Victim/InstallerVictim.ipa
+        cd ..
+        
     # 主要构建过程
     - name: Build project
       env:
@@ -82,6 +101,10 @@ jobs:
         make assemble_trollstore                    # 组装完整程序
         make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
         
+        # 构建 TrollHelper IPA
+        make build_installer15
+        make build_installer64e
+        
         # 验证构建结果
         ls -l _build/
         
@@ -91,17 +114,10 @@ jobs:
       with:
         name: TrollStore-Build
         path: |
-          _build/                    # 所有构建输出
-          TrollStore/packages/*.deb  # TrollStore 包
-          TrollHelper/packages/*.deb # TrollHelper 包
-
-    # 准备基础 IPA 文件
-    - name: Prepare Victim
-      run: |
-        mkdir -p Victim
-        cd Victim
-        # 创建最小 IPA 文件结构
-        mkdir -p Payload/Example.app
-        touch Payload/Example.app/Example
-        zip -r InstallerVictim.ipa Payload
-        cd ..
+          _build/TrollHelper_iOS15.ipa    # iOS 15 版本
+          _build/TrollHelper_arm64e.ipa   # arm64e 版本
+          _build/TrollStore.tar           # 主程序
+          _build/PersistenceHelper_*      # 持久化助手
+          _build/packages/*.deb           # 安装包
+          TrollStore/packages/*.deb
+          TrollHelper/packages/*.deb
