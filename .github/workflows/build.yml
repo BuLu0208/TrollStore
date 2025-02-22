@@ -60,21 +60,37 @@ jobs:
     # 准备基础 IPA 文件
     - name: Prepare Victim IPA
       run: |
-        # 安装 Flutter
+        # 安装 Flutter 和 Java 17
         brew install flutter
-        flutter doctor
+        brew install openjdk@17
+        
+        # 配置 Java 环境
+        echo 'export PATH="/usr/local/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
+        source ~/.zshrc
+        export JAVA_HOME=$(/usr/libexec/java_home -v 17)
         
         # 创建临时 Flutter 项目
         flutter create victim_app
         cd victim_app
         
-        # 编译 IPA
-        flutter build ipa --release --no-codesign
+        # 修改 bundle identifier
+        sed -i '' 's/com.example.victimApp/com.opa334.trollhelper/g' ios/Runner.xcodeproj/project.pbxproj
         
-        # 复制到 Victim 目录
-        mkdir -p ../Victim
-        cp build/ios/ipa/victim_app.ipa ../Victim/InstallerVictim.ipa
-        cd ..
+        # 修改应用名称
+        sed -i '' 's/Victim App/TrollHelper/g' ios/Runner/Info.plist
+        
+        # 构建 archive
+        flutter build ios --release --no-codesign
+        
+        # 手动创建 IPA
+        cd build/ios/iphoneos
+        mkdir -p Payload
+        cp -r Runner.app Payload/
+        zip -r ../../../Victim/InstallerVictim.ipa Payload
+        cd ../../..
+        
+        # 验证 IPA 文件
+        ls -l Victim/InstallerVictim.ipa
         
     # 主要构建过程
     - name: Build project
@@ -99,11 +115,12 @@ jobs:
         make make_trollhelper_embedded MAKECMDGOALS=all  # 构建嵌入式助手
         make make_trollhelper_package MAKECMDGOALS=all   # 构建安装包
         make assemble_trollstore                    # 组装完整程序
-        make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
         
         # 构建 TrollHelper IPA
         make build_installer15
         make build_installer64e
+        
+        make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
         
         # 验证构建结果
         ls -l _build/
