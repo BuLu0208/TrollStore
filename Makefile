@@ -47,12 +47,9 @@ build_installer15:
 	@mkdir -p ./_build/tmp15
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
-	@stat -f "%A" ./_build/tmp15/Payload/Runner.app/Runner > ./_build/tmp15/runner_perms
-	
+	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
-	
-	@chmod $(shell cat ./_build/tmp15/runner_perms) ./_build/tmp15/Payload/Runner.app/Runner
-	@rm ./_build/tmp15/runner_perms
+	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
 	
 	@ldid -Cauto -K./Victim/victim.p12 ./_build/tmp15/Payload/Runner.app/Runner
 	
@@ -66,12 +63,9 @@ build_installer64e:
 	@mkdir -p ./_build/tmp64e
 	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	@stat -f "%A" ./_build/tmp64e/Payload/Runner.app/Runner > ./_build/tmp64e/runner_perms
-	
+	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64e ./_build/tmp64e/Payload/Runner.app/Runner
-	
-	@chmod $(shell cat ./_build/tmp64e/runner_perms) ./_build/tmp64e/Payload/Runner.app/Runner
-	@rm ./_build/tmp64e/runner_perms
+	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
 	
 	@ldid -Cauto -K./Victim/victim.p12 ./_build/tmp64e/Payload/Runner.app/Runner
 	
