@@ -113,13 +113,27 @@ jobs:
         # 显示构建产物
         ls -l _build/
         
-    # 上传构建产物
+    # 主要构建过程后添加调试信息
+    - name: List build artifacts
+      run: |
+        echo "列出 _build 目录内容:"
+        ls -la _build/
+        echo "列出 TrollStore/packages 目录内容:"
+        ls -la TrollStore/packages/ || echo "TrollStore/packages 目录不存在"
+        echo "列出 TrollHelper/packages 目录内容:"
+        ls -la TrollHelper/packages/ || echo "TrollHelper/packages 目录不存在"
+    
+    # 修改上传构建产物的配置
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: TrollStore-Build
         path: |
-          _build/                      # 上传整个 _build 目录
-          TrollStore/packages/*.deb    # TrollStore 安装包
-          TrollHelper/packages/*.deb   # TrollHelper 安装包
+          _build/TrollHelper_iOS15.ipa
+          _build/TrollHelper_arm64e.ipa
+          _build/TrollStore.tar
+          _build/PersistenceHelper_*
+          TrollStore/packages/*.deb
+          TrollHelper/packages/*.deb
+        if-no-files-found: error  # 如果找不到文件就报错
         
