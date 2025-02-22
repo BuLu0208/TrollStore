@@ -43,59 +43,61 @@ assemble_trollstore:
 	@export COPYFILE_DISABLE=1
 	@tar -czvf ./_build/TrollStore.tar -C ./TrollStore/.theos/obj TrollStore.app
 
+# iOS15 版本安装器构建目标
 build_installer15:
+	# 创建临时构建目录
 	@mkdir -p ./_build/tmp15
-	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp15
+	# 解压基础 IPA 文件到临时目录
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
 	
-	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
-	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
-	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
+	# 复制 arm64 版本的持久化助手到临时注入文件
+	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/TrollStorePersistenceHelperToInject
+	# 设置 CPU 子类型为 arm64,确保兼容性
+	@pwnify set-cpusubtype ./_build/TrollStorePersistenceHelperToInject 1
+	# 使用受害者证书对注入文件进行签名
+	@ldid -s -K./Victim/victim.p12 ./_build/TrollStorePersistenceHelperToInject
 	
-	@echo '<?xml version="1.0" encoding="UTF-8"?>
-	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-	<plist version="1.0">
-	<dict>
-		<key>platform-application</key><true/>
-		<key>com.apple.private.security.no-container</key><true/>
-		<key>com.apple.private.security.container-required</key><false/>
-		<key>com.apple.private.mobileinstall.allowedSPI</key>
-		<array>
-			<string>Install</string>
-			<string>InstallForLaunchServices</string>
-			<string>Uninstall</string>
-		</array>
-		<key>get-task-allow</key><true/>
-		<key>task_for_pid-allow</key><true/>
-		<key>run-unsigned-code</key><true/>
-		<key>com.apple.private.skip-library-validation</key><true/>
-	</dict>
-	</plist>' > ./_build/tmp15/entitlements.xml
+	# 查找并替换目标应用的二进制文件
+	# 1. 查找 Payload 目录下的应用目录
+	# 2. 获取应用目录名称
+	# 3. 提取应用二进制文件名
+	# 4. 使用 pwnify 工具注入持久化助手
+	APP_PATH=$$(find ./_build/tmp15/Payload -name "*" -depth 1) ; \
+	APP_NAME=$$(basename $$APP_PATH) ; \
+	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
+	echo $$BINARY_NAME ; \
+	pwnify pwn ./_build/tmp15/Payload/$$APP_NAME/$$BINARY_NAME ./_build/TrollStorePersistenceHelperToInject
 	
-	@ldid -S./_build/tmp15/entitlements.xml ./_build/tmp15/Payload/Runner.app/Runner
-	@rm ./_build/tmp15/entitlements.xml
-	
+	# 打包修改后的文件为新的 IPA
 	@pushd ./_build/tmp15 ; \
-	zip -X -r ../../_build/TrollHelper_iOS15.ipa * ; \
+	zip -vrD ../../_build/TrollHelper_iOS15.ipa * ; \
 	popd
 	
+	# 清理临时文件和目录
+	@rm ./_build/TrollStorePersistenceHelperToInject
 	@rm -rf ./_build/tmp15
 
+# iOS arm64e 版本安装器构建目标
 build_installer64e:
+	# 创建临时构建目录
 	@mkdir -p ./_build/tmp64e
-	@unzip -X ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
+	# 解压基础 IPA 文件到临时目录
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
-	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64e ./_build/tmp64e/Payload/Runner.app/Runner
-	@chmod 755 ./_build/tmp64e/Payload/Runner.app/Runner
+	# 查找并替换目标应用的二进制文件(arm64e 版本)
+	# 使用相同的查找逻辑,但使用 arm64e 特定的注入命令
+	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
+	APP_NAME=$$(basename $$APP_PATH) ; \
+	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
+	echo $$BINARY_NAME ; \
+	pwnify pwn64e ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
 	
-	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp64e/entitlements.xml
-	@ldid -S./_build/tmp64e/entitlements.xml ./_build/tmp64e/Payload/Runner.app/Runner
-	@rm ./_build/tmp64e/entitlements.xml
-	
+	# 打包修改后的文件为新的 IPA
 	@pushd ./_build/tmp64e ; \
-	zip -X -r ../../_build/TrollHelper_arm64e.ipa * ; \
+	zip -vrD ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
 	
+	# 清理临时目录
 	@rm -rf ./_build/tmp64e
 
 make_trollstore_lite:

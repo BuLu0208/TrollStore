@@ -1,36 +1,47 @@
+# 工作流名称
 name: Build TrollStore
 
+# 触发条件
 on:
+  # 当 main 分支有推送时触发
   push:
     branches: [ main ]
+  # 允许手动触发
   workflow_dispatch:
 
 jobs:
   build:
+    # 使用 macOS 最新版本作为构建环境
     runs-on: macos-latest
     
     steps:
+    # 检出代码,包括所有子模块
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
     
+    # 安装构建依赖
     - name: Install dependencies
       run: |
-        brew install ldid
-        brew install make
-        brew install openssl@3
-        brew install libarchive
-        brew install pkg-config
+        brew install ldid        # 用于签名 iOS 二进制文件
+        brew install make        # GNU make 工具
+        brew install openssl@3   # OpenSSL 库
+        brew install libarchive  # 用于处理归档文件
+        brew install pkg-config  # 包配置工具
         
+    # 设置 Theos 开发环境
     - name: Setup Theos
       run: |
+        # 克隆 Theos 仓库
         git clone --recursive https://github.com/theos/theos.git theos
+        # 下载并安装 iOS SDK
         curl -LO https://github.com/theos/sdks/archive/master.zip
         unzip master.zip
         mkdir -p theos/sdks
         mv sdks-master/* theos/sdks/
         rm -rf sdks-master master.zip
         
+    # 构建 ChOma 工具
     - name: Build ChOma
       run: |
         cd ChOma
@@ -38,6 +49,7 @@ jobs:
         sudo make install
         cd ..
         
+    # 构建 Pwnify 工具
     - name: Build Pwnify
       run: |
         cd Pwnify
@@ -45,50 +57,51 @@ jobs:
         sudo make install
         cd ..
         
-    - name: Prepare Victim
-      run: |
-        mkdir -p Victim
-        # 下载基础应用用于注入
-        curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o Victim/InstallerVictim.ipa
-        # 准备签名证书
-        echo "${{ secrets.VICTIM_P12 }}" | base64 -d > Victim/victim.p12
-        
+    # 主要构建过程
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
         set -e
+        # 设置环境变量
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 构建所有组件
+        # 首先构建 fastPathSign 工具
         cd Exploits/fastPathSign
         make
         cd ../..
         
-        make pre_build
-        make make_roothelper MAKECMDGOALS=all
-        make make_trollstore MAKECMDGOALS=all
-        make make_trollhelper_embedded MAKECMDGOALS=all
-        make make_trollhelper_package MAKECMDGOALS=all
-        make assemble_trollstore
-        make build_installer15
-        make build_installer64e
-        make make_trollstore_lite MAKECMDGOALS=all
+        # 按顺序构建各个组件
+        make pre_build                      # 预构建准备
+        make make_roothelper MAKECMDGOALS=all       # 构建 root 助手
+        make make_trollstore MAKECMDGOALS=all       # 构建主程序
+        make make_trollhelper_embedded MAKECMDGOALS=all  # 构建嵌入式助手
+        make make_trollhelper_package MAKECMDGOALS=all   # 构建安装包
+        make assemble_trollstore                    # 组装完整程序
+        make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
         
         # 验证构建结果
-        ls -la _build/
+        ls -l _build/
         
+    # 上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: TrollStore-Build
         path: |
-          _build/TrollHelper_iOS15.ipa
-          _build/TrollHelper_arm64e.ipa
-          _build/TrollStore.tar
-          _build/PersistenceHelper_*
-          _build/packages/*.deb
-          TrollStore/packages/*.deb
-          TrollHelper/packages/*.deb
+          _build/                    # 所有构建输出
+          TrollStore/packages/*.deb  # TrollStore 包
+          TrollHelper/packages/*.deb # TrollHelper 包
+
+    # 准备基础 IPA 文件
+    - name: Prepare Victim
+      run: |
+        mkdir -p Victim
+        cd Victim
+        # 创建最小 IPA 文件结构
+        mkdir -p Payload/Example.app
+        touch Payload/Example.app/Example
+        zip -r InstallerVictim.ipa Payload
+        cd ..
