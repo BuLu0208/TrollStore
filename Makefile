@@ -51,7 +51,26 @@ build_installer15:
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/tmp15/Payload/Runner.app/Runner
 	@chmod 755 ./_build/tmp15/Payload/Runner.app/Runner
 	
-	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp15/entitlements.xml
+	@echo '<?xml version="1.0" encoding="UTF-8"?>
+	<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+	<plist version="1.0">
+	<dict>
+		<key>platform-application</key><true/>
+		<key>com.apple.private.security.no-container</key><true/>
+		<key>com.apple.private.security.container-required</key><false/>
+		<key>com.apple.private.mobileinstall.allowedSPI</key>
+		<array>
+			<string>Install</string>
+			<string>InstallForLaunchServices</string>
+			<string>Uninstall</string>
+		</array>
+		<key>get-task-allow</key><true/>
+		<key>task_for_pid-allow</key><true/>
+		<key>run-unsigned-code</key><true/>
+		<key>com.apple.private.skip-library-validation</key><true/>
+	</dict>
+	</plist>' > ./_build/tmp15/entitlements.xml
+	
 	@ldid -S./_build/tmp15/entitlements.xml ./_build/tmp15/Payload/Runner.app/Runner
 	@rm ./_build/tmp15/entitlements.xml
 	
