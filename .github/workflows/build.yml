@@ -63,13 +63,8 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 按顺序编译各个组件
-        make pre_build
-        make make_fastPathSign
-        make make_roothelper
-        make make_trollstore
-        make make_trollhelper_embedded
-        make make_trollhelper_package
+        # 直接使用 all 目标，它会按正确顺序调用所有子目标
+        make all
         
         # 验证编译结果
         ls -l _build/
