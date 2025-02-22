@@ -57,7 +57,7 @@ jobs:
     - name: Prepare Victim
       run: |
         mkdir -p Victim
-        # 从您的 GitHub 仓库下载 GTA Car Tracker.ipa
+        # 使用您提供的官方 GTA Car Tracker.ipa
         curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o Victim/InstallerVictim.ipa
         
     - name: Build project
@@ -87,6 +87,7 @@ jobs:
         make build_installer64e
         
         make make_trollstore_lite MAKECMDGOALS=all
+        
         
         # 验证编译结果
         ls -l _build/
