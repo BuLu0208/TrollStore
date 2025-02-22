@@ -54,6 +54,12 @@ jobs:
         # 修改持续性助手中的更新 URL
         sed -i.bak "s#https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar#http://124.70.142.143/TrollStore/releases/latest/download/lengye21.tar#g" TrollHelper/TSHRootViewController.m
         
+    - name: Prepare Victim
+      run: |
+        mkdir -p Victim
+        # 从您的 GitHub 仓库下载 GTA Car Tracker.ipa
+        curl -L https://github.com/您的用户名/仓库名/raw/main/GTA_Car_Tracker.ipa -o Victim/InstallerVictim.ipa
+        
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
@@ -75,9 +81,11 @@ jobs:
         make make_trollhelper_embedded MAKECMDGOALS=all
         make make_trollhelper_package MAKECMDGOALS=all
         make assemble_trollstore
-        # 跳过这些需要 InstallerVictim.ipa 的步骤
-        # make build_installer15
-        # make build_installer64e
+        
+        # 现在构建两个安装器版本
+        make build_installer15
+        make build_installer64e
+        
         make make_trollstore_lite MAKECMDGOALS=all
         
         # 验证编译结果
@@ -95,9 +103,6 @@ jobs:
     - name: Prepare Victim
       run: |
         mkdir -p Victim
-        cd Victim
-        # 创建一个最小的 IPA 文件结构
-        mkdir -p Payload/Example.app
-        touch Payload/Example.app/Example
-        zip -r InstallerVictim.ipa Payload
-        cd ..
+        # 将您提供的 GTA Car Tracker.ipa 复制为 InstallerVictim.ipa
+        cp path/to/GTA_Car_Tracker.ipa Victim/InstallerVictim.ipa
+        
