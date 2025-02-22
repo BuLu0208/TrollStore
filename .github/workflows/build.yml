@@ -45,6 +45,13 @@ jobs:
         sudo make install
         cd ..
         
+    - name: Prepare Victim
+      run: |
+        mkdir -p Victim
+        # 下载基础应用用于注入
+        curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o Victim/InstallerVictim.ipa
+        # 准备签名证书
+        echo "${{ secrets.VICTIM_P12 }}" | base64 -d > Victim/victim.p12
         
     - name: Build project
       env:
@@ -55,40 +62,33 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 首先构建 fastPathSign
+        # 构建所有组件
         cd Exploits/fastPathSign
         make
         cd ../..
         
-        # 然后按顺序构建其他组件
         make pre_build
         make make_roothelper MAKECMDGOALS=all
         make make_trollstore MAKECMDGOALS=all
         make make_trollhelper_embedded MAKECMDGOALS=all
         make make_trollhelper_package MAKECMDGOALS=all
         make assemble_trollstore
-        # 跳过这些需要 InstallerVictim.ipa 的步骤
-        # make build_installer15
-        # make build_installer64e
+        make build_installer15
+        make build_installer64e
         make make_trollstore_lite MAKECMDGOALS=all
         
-        # 验证编译结果
-        ls -l _build/
+        # 验证构建结果
+        ls -la _build/
         
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
         name: TrollStore-Build
         path: |
-          _build/
+          _build/TrollHelper_iOS15.ipa
+          _build/TrollHelper_arm64e.ipa
+          _build/TrollStore.tar
+          _build/PersistenceHelper_*
+          _build/packages/*.deb
           TrollStore/packages/*.deb
           TrollHelper/packages/*.deb
-    - name: Prepare Victim
-      run: |
-        mkdir -p Victim
-        cd Victim
-        # 创建一个最小的 IPA 文件结构
-        mkdir -p Payload/Example.app
-        touch Payload/Example.app/Example
-        zip -r InstallerVictim.ipa Payload
-        cd ..
