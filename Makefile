@@ -26,31 +26,16 @@ make_trollhelper_package:
 	@rm ./TrollHelper/Resources/trollstorehelper
 
 make_trollhelper_embedded:
-	@rm -rf ./_build/tmp15 ./_build/tmp64e 2>/dev/null || true
-	@mkdir -p ./_build/tmp15 ./_build/tmp64e
-	
-	@unzip -q ./Victim/InstallerVictim.ipa -d ./_build/tmp15
-	@unzip -q ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
-	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 $(MAKECMDGOALS)
 	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/PersistenceHelper_Embedded
-	
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 LEGACY_CT_BUG=1 $(MAKECMDGOALS)
-	@mv ./_build/tmp15/Payload/Runner.app/Info.plist ./_build/tmp15/Info.plist.bak
-	@mv ./_build/tmp15/Payload/Runner.app/AppIcon* ./_build/tmp15/
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp15/Payload/Runner.app/
-	@mv ./_build/tmp15/Info.plist.bak ./_build/tmp15/Payload/Runner.app/Info.plist
-	@mv ./_build/tmp15/AppIcon* ./_build/tmp15/Payload/Runner.app/
-	
+	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/PersistenceHelper_Embedded_Legacy_arm64
 	@$(MAKE) clean -C ./TrollHelper
 	@$(MAKE) -C ./TrollHelper FINALPACKAGE=1 EMBEDDED_ROOT_HELPER=1 CUSTOM_ARCHS=arm64e $(MAKECMDGOALS)
-	@mv ./_build/tmp64e/Payload/Runner.app/Info.plist ./_build/tmp64e/Info.plist.bak
-	@mv ./_build/tmp64e/Payload/Runner.app/AppIcon* ./_build/tmp64e/
-	@cp -r ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/* ./_build/tmp64e/Payload/Runner.app/
-	@mv ./_build/tmp64e/Info.plist.bak ./_build/tmp64e/Payload/Runner.app/Info.plist
-	@mv ./_build/tmp64e/AppIcon* ./_build/tmp64e/Payload/Runner.app/
+	@cp ./TrollHelper/.theos/obj/TrollStorePersistenceHelper.app/TrollStorePersistenceHelper ./_build/PersistenceHelper_Embedded_Legacy_arm64e
+	@$(MAKE) clean -C ./TrollHelper
 
 assemble_trollstore:
 	@cp ./RootHelper/.theos/obj/trollstorehelper ./TrollStore/.theos/obj/TrollStore.app/trollstorehelper
@@ -59,24 +44,34 @@ assemble_trollstore:
 	@tar -czvf ./_build/TrollStore.tar -C ./TrollStore/.theos/obj TrollStore.app
 
 build_installer15:
-	@echo "重新签名 iOS15 版本..."
-	@ldid -S ./_build/tmp15/Payload/Runner.app/Runner
-	
-	@echo "打包 iOS15 版本..."
+	@mkdir -p ./_build/tmp15
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp15
+	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/TrollStorePersistenceHelperToInject
+	@pwnify set-cpusubtype ./_build/TrollStorePersistenceHelperToInject 1
+	@ldid -s -K./Victim/victim.p12 ./_build/TrollStorePersistenceHelperToInject
+	APP_PATH=$$(find ./_build/tmp15/Payload -name "*" -depth 1) ; \
+	APP_NAME=$$(basename $$APP_PATH) ; \
+	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
+	echo $$BINARY_NAME ; \
+	pwnify pwn ./_build/tmp15/Payload/$$APP_NAME/$$BINARY_NAME ./_build/TrollStorePersistenceHelperToInject
 	@pushd ./_build/tmp15 ; \
-	zip -qvrD ../../_build/TrollHelper_iOS15.ipa * ; \
+	zip -vrD ../../_build/TrollHelper_iOS15.ipa * ; \
 	popd
+	@rm ./_build/TrollStorePersistenceHelperToInject
+	@rm -rf ./_build/tmp15
 
 build_installer64e:
-	@echo "重新签名 arm64e 版本..."
-	@ldid -S ./_build/tmp64e/Payload/Runner.app/Runner
-	
-	@echo "打包 arm64e 版本..."
+	@mkdir -p ./_build/tmp64e
+	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
+	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
+	APP_NAME=$$(basename $$APP_PATH) ; \
+	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
+	echo $$BINARY_NAME ; \
+	pwnify pwn64e ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
 	@pushd ./_build/tmp64e ; \
-	zip -qvrD ../../_build/TrollHelper_arm64e.ipa * ; \
+	zip -vrD ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
-	
-	@rm -rf ./_build/tmp15 ./_build/tmp64e
+	@rm -rf ./_build/tmp64e
 
 make_trollstore_lite:
 	@$(MAKE) -C ./RootHelper DEBUG=0 TROLLSTORE_LITE=1

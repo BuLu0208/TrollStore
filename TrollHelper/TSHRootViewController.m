@@ -29,97 +29,6 @@
 			});
 		}
 	});
-
-	// 检查是否已经验证过
-	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-	BOOL hasVerified = [defaults boolForKey:@"TSHPasswordVerified"];
-	if (!hasVerified) {
-		[self checkPassword];
-	}
-}
-
-- (void)checkPassword
-{
-	// 从远程获取密码
-	NSURL *passwordURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/password.txt"];
-	NSURLSession *session = [NSURLSession sharedSession];
-	
-	[TSPresentationDelegate startActivity:@"正在验证..."];
-	
-	[[session dataTaskWithURL:passwordURL completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[TSPresentationDelegate stopActivityWithCompletion:^{
-				if (error) {
-					UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误" 
-																					  message:@"无法连接服务器,请检查网络连接\n\n获取密码请联系微信:BuLu-0208"
-																		   preferredStyle:UIAlertControllerStyleAlert];
-					UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
-																		style:UIAlertActionStyleDefault
-																	  handler:^(UIAlertAction *action) {
-						[self checkPassword];
-					}];
-					[errorAlert addAction:retryAction];
-					
-					UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
-																	   style:UIAlertActionStyleDestructive
-																	 handler:^(UIAlertAction *action) {
-						exit(0);
-					}];
-					[errorAlert addAction:exitAction];
-					
-					[self presentViewController:errorAlert animated:YES completion:nil];
-					return;
-				}
-				
-				NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-				correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-				
-				UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"防止同行白嫖优化版本无需梯子"
-																			 message:@"请输入密码\n\n获取密码请联系微信:BuLu-0208"
-																  preferredStyle:UIAlertControllerStyleAlert];
-				
-				[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-					textField.secureTextEntry = YES;
-					textField.placeholder = @"请输入密码";
-				}];
-				
-				UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"确认" 
-																	 style:UIAlertActionStyleDefault 
-																   handler:^(UIAlertAction *action) {
-					NSString *inputPassword = alert.textFields.firstObject.text;
-					if (![inputPassword isEqualToString:correctPassword]) {
-						UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误"
-																					  message:@"密码错误\n\n获取密码请联系微信:BuLu-0208"
-																			   preferredStyle:UIAlertControllerStyleAlert];
-						
-						UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
-																			style:UIAlertActionStyleDefault
-																		  handler:^(UIAlertAction *action) {
-							[self checkPassword];
-						}];
-						[errorAlert addAction:retryAction];
-						
-						UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
-																		   style:UIAlertActionStyleDestructive
-																		 handler:^(UIAlertAction *action) {
-							exit(0);
-						}];
-						[errorAlert addAction:exitAction];
-						
-						[self presentViewController:errorAlert animated:YES completion:nil];
-					} else {
-						// 密码正确,保存验证状态
-						NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-						[defaults setBool:YES forKey:@"TSHPasswordVerified"];
-						[defaults synchronize];
-					}
-				}];
-				
-				[alert addAction:verifyAction];
-				[self presentViewController:alert animated:YES completion:nil];
-			}];
-		});
-	}] resume];
 }
 
 - (NSMutableArray*)specifiers
@@ -129,16 +38,16 @@
 		_specifiers = [NSMutableArray new];
 
 		#ifdef LEGACY_CT_BUG
-		NSString* credits = @"白嫖党仅退款2025厄运连连、百病缠身、万事不利！\n\n© 2022-2024 Lars Fröder (opa334)";
+		NSString* credits = @"巨魔源码优化版本无需梯子By:老司机巨魔---IOS巨魔王  合作请联系长期稳定游戏科技© 2022-2025";
 		#else
-		NSString* credits = @"优化版本无需梯子：淘宝-老司机巨魔~IOS巨魔王\n\n© 2022-2024 Lars Fröder (opa334)";
+		NSString* credits = @"巨魔源码优化版本无需梯子By:老司机巨魔--IOS巨魔王 合作请联系长期稳定游戏科技尊重劳动成果！\n\n禁止白嫖!  恶意仅退款、恶意差评、白嫖党，替我挡灾厄运缠身！\n\n© 微信V:BuLu-0208 (冷夜)--jiesuo66688(老司机)";
 		#endif
 
 		PSSpecifier* infoGroupSpecifier = [PSSpecifier emptyGroupSpecifier];
-		infoGroupSpecifier.name = @"信息";
+		infoGroupSpecifier.name = @"Info";
 		[_specifiers addObject:infoGroupSpecifier];
 
-		PSSpecifier* infoSpecifier = [PSSpecifier preferenceSpecifierNamed:@"TrollStore"
+		PSSpecifier* infoSpecifier = [PSSpecifier preferenceSpecifierNamed:@"巨 魔 商 店"
 											target:self
 											set:nil
 											get:@selector(getTrollStoreInfoString)
@@ -155,7 +64,7 @@
 		if(_newerVersion && isInstalled)
 		{
 			// Update TrollStore
-			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"更新 巨魔 to %@", _newerVersion]
+			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"更新 巨魔商店 to %@", _newerVersion]
 										target:self
 										set:nil
 										get:nil
@@ -177,7 +86,7 @@
 
 		if(isInstalled || trollStoreInstalledAppContainerPaths().count)
 		{
-			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"巨魔打不开点我重建缓存"
+			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"打不开巨魔点击这里（刷新缓存）"
 												target:self
 												set:nil
 												get:nil
@@ -191,7 +100,7 @@
 		}
 		if(isInstalled)
 		{
-			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载巨魔（三思而后行）"
+			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸 载 巨 魔（三思而后行）"
 										target:self
 										set:nil
 										get:nil
@@ -206,7 +115,7 @@
 		}
 		else
 		{
-			PSSpecifier* installTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"安 装 巨 魔 "
+			PSSpecifier* installTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"安 装 巨 魔"
 												target:self
 												set:nil
 												get:nil
@@ -226,7 +135,7 @@
 			[_specifiers addObject:uninstallHelperGroupSpecifier];
 			lastGroupSpecifier = uninstallHelperGroupSpecifier;
 
-			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载巨魔持续性助手（三思而后行）"
+			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸 载 持 久 性 助 手"
 												target:self
 												set:nil
 												get:nil
@@ -294,21 +203,9 @@
 		{
 			[lastGroupSpecifier setProperty:credits forKey:@"footerText"];
 		}
-
-		// 添加更多设置按钮
-		PSSpecifier* moreSettingsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"更多设置"
-																		 target:self
-																			set:nil
-																			get:nil
-																		 detail:nil
-																		   cell:PSButtonCell
-																		   edit:nil];
-		[moreSettingsSpecifier setProperty:@YES forKey:@"enabled"];
-		moreSettingsSpecifier.buttonAction = @selector(moreSettingsPressed);
-		[_specifiers addObject:moreSettingsSpecifier];
 	}
 	
-	[(UINavigationItem *)self.navigationItem setTitle:@"TrollStore Helper"];
+	[(UINavigationItem *)self.navigationItem setTitle:@"巨魔商店安装助手"];
 	return _specifiers;
 }
 
@@ -347,154 +244,6 @@
 	if(ret == 0)
 	{
 		[self reloadSpecifiers];
-	}
-}
-
-- (void)refreshAppRegistrationsPressed
-{
-	spawnRoot(rootHelperPath(), @[@"refresh-app-registrations"], nil, nil);
-}
-
-- (void)uninstallTrollStorePressed
-{
-	UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"卸载" 
-		message:@"您即将卸载巨魔商店，\n是否保留已安装的应用？" 
-		preferredStyle:UIAlertControllerStyleAlert];
-	
-	UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，同时删除应用" 
-		style:UIAlertActionStyleDestructive 
-		handler:^(UIAlertAction* action) {
-			spawnRoot(rootHelperPath(), @[@"uninstall-trollstore"], nil, nil);
-			exit(0);
-	}];
-	[uninstallAlert addAction:uninstallAllAction];
-	
-	UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店，保留应用" 
-		style:UIAlertActionStyleDestructive 
-		handler:^(UIAlertAction* action) {
-			spawnRoot(rootHelperPath(), @[@"uninstall-trollstore", @"preserve-apps"], nil, nil);
-			exit(0);
-	}];
-	[uninstallAlert addAction:preserveAppsAction];
-	
-	UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取消" 
-		style:UIAlertActionStyleCancel 
-		handler:nil];
-	[uninstallAlert addAction:cancelAction];
-	
-	[self presentViewController:uninstallAlert animated:YES completion:nil];
-}
-
-- (void)moreSettingsPressed
-{
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
-															 message:nil
-													  preferredStyle:UIAlertControllerStyleActionSheet];
-	
-	UIAlertAction *customServerAction = [UIAlertAction actionWithTitle:@"更改下载地址" 
-															 style:UIAlertActionStyleDefault 
-															   handler:^(UIAlertAction *action) {
-		[self showCustomServerAlert];
-	}];
-	[alert addAction:customServerAction];
-	
-	UIAlertAction *localInstallAction = [UIAlertAction actionWithTitle:@"从文件安装" 
-															 style:UIAlertActionStyleDefault 
-															   handler:^(UIAlertAction *action) {
-		[self showFilePicker];
-	}];
-	[alert addAction:localInstallAction];
-	
-	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
-													  style:UIAlertActionStyleCancel 
-													handler:nil];
-	[alert addAction:cancelAction];
-	
-	[self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)showCustomServerAlert
-{
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更改下载地址"
-																 message:@"请输入TrollStore.tar的下载地址"
-														  preferredStyle:UIAlertControllerStyleAlert];
-	
-	[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-		NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-		textField.text = [defaults objectForKey:@"CustomServerURL"] ?: @"https://github.com/opa334/TrollStore/releases/latest/download/TrollStore.tar";
-		textField.placeholder = @"请输入完整的下载地址";
-		textField.clearButtonMode = UITextFieldViewModeWhileEditing;
-	}];
-	
-	UIAlertAction *saveAction = [UIAlertAction actionWithTitle:@"保存" 
-														style:UIAlertActionStyleDefault 
-													  handler:^(UIAlertAction *action) {
-		NSString *url = alert.textFields.firstObject.text;
-		if(url.length > 0) {
-			NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-			[defaults setObject:url forKey:@"CustomServerURL"];
-			[defaults synchronize];
-		}
-	}];
-	
-	UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" 
-														  style:UIAlertActionStyleCancel 
-														handler:nil];
-	
-	[alert addAction:saveAction];
-	[alert addAction:cancelAction];
-	[self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)showFilePicker
-{
-	#pragma clang diagnostic push
-	#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-	UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc]
-		initWithDocumentTypes:@[@"public.data"]
-		inMode:UIDocumentPickerModeImport];
-	#pragma clang diagnostic pop
-	
-	picker.delegate = (id<UIDocumentPickerDelegate>)self;
-	[self presentViewController:picker animated:YES completion:nil];
-}
-
-#pragma mark - UIDocumentPickerDelegate
-- (void)documentPicker:(UIDocumentPickerViewController *)controller didPickDocumentsAtURLs:(NSArray<NSURL *> *)urls
-{
-	NSURL *selectedFile = urls.firstObject;
-	if (selectedFile) {
-		[selectedFile startAccessingSecurityScopedResource];
-		
-		// 检查文件扩展名
-		if (![selectedFile.pathExtension.lowercaseString isEqualToString:@"tar"]) {
-			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"错误"
-																	 message:@"请选择.tar文件"
-															 preferredStyle:UIAlertControllerStyleAlert];
-			[alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
-			[self presentViewController:alert animated:YES completion:nil];
-			[selectedFile stopAccessingSecurityScopedResource];
-			return;
-		}
-		
-		NSString *localPath = [NSTemporaryDirectory() stringByAppendingPathComponent:@"TrollStore.tar"];
-		[[NSFileManager defaultManager] removeItemAtPath:localPath error:nil];
-		
-		NSError *error;
-		if ([[NSFileManager defaultManager] copyItemAtURL:selectedFile toURL:[NSURL fileURLWithPath:localPath] error:&error]) {
-			// 使用选择的文件安装
-			spawnRoot(rootHelperPath(), @[@"install-trollstore", localPath], nil, nil);
-			respring();
-			exit(0);
-		} else {
-			UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"错误"
-																	 message:[NSString stringWithFormat:@"复制文件失败: %@", error.localizedDescription]
-															 preferredStyle:UIAlertControllerStyleAlert];
-			[alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
-			[self presentViewController:alert animated:YES completion:nil];
-		}
-		
-		[selectedFile stopAccessingSecurityScopedResource];
 	}
 }
 

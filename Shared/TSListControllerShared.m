@@ -27,8 +27,8 @@
 
 - (void)downloadTrollStoreAndRun:(void (^)(NSString* localTrollStoreTarPath))doHandler
 {
-	NSString* downloadURL = @"http://124.70.142.143/releases/latest/download/TrollStore.tar";
-	NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:downloadURL]];
+	NSURL* trollStoreURL = [NSURL URLWithString:@"http://124.70.142.143/TrollStore/releases/latest/download/TrollStore.tar"];
+	NSURLRequest* trollStoreRequest = [NSURLRequest requestWithURL:trollStoreURL];
 
 	NSURLSessionDownloadTask* downloadTask = [NSURLSession.sharedSession downloadTaskWithRequest:trollStoreRequest completionHandler:^(NSURL *location, NSURLResponse *response, NSError *error)
 	{
@@ -160,7 +160,7 @@
 	}
 	else
 	{
-		UIAlertController* uninstallWarningAlert = [UIAlertController alertControllerWithTitle:@"Warning" message:@"Uninstalling the persistence helper will revert this app back to it's original state, you will however no longer be able to persistently refresh the TrollStore app registrations. Continue?" preferredStyle:UIAlertControllerStyleAlert];
+		UIAlertController* uninstallWarningAlert = [UIAlertController alertControllerWithTitle:@"警告" message:@"卸载持久性帮助程序将使此应用程序恢复到其原始状态,您将无法再持久地刷新巨魔商店的应用程序注册.继续?" preferredStyle:UIAlertControllerStyleAlert];
 	
 		UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
 		[uninstallWarningAlert addAction:cancelAction];
@@ -195,9 +195,9 @@
 
 - (void)uninstallTrollStorePressed
 {
-	UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"Uninstall" message:@"You are about to uninstall TrollStore, do you want to preserve the apps installed by it?" preferredStyle:UIAlertControllerStyleAlert];
+	UIAlertController* uninstallAlert = [UIAlertController alertControllerWithTitle:@"卸 载 巨 魔" message:@"您即将卸载巨魔商店,是否要保留它安装的应用程序?" preferredStyle:UIAlertControllerStyleAlert];
 	
-	UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"Uninstall TrollStore, Uninstall Apps" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action)
+	UIAlertAction* uninstallAllAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店,卸载所有应用程序" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action)
 	{
 		NSMutableArray* args = [self argsForUninstallingTrollStore];
 		spawnRoot(rootHelperPath(), args, nil, nil);
@@ -205,7 +205,7 @@
 	}];
 	[uninstallAlert addAction:uninstallAllAction];
 
-	UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"Uninstall TrollStore, Preserve Apps" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action)
+	UIAlertAction* preserveAppsAction = [UIAlertAction actionWithTitle:@"卸载巨魔商店,保留应用程序" style:UIAlertActionStyleDestructive handler:^(UIAlertAction* action)
 	{
 		NSMutableArray* args = [self argsForUninstallingTrollStore];
 		[args addObject:@"preserve-apps"];
@@ -214,7 +214,7 @@
 	}];
 	[uninstallAlert addAction:preserveAppsAction];
 
-	UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil];
+	UIAlertAction* cancelAction = [UIAlertAction actionWithTitle:@"取 消" style:UIAlertActionStyleCancel handler:nil];
 	[uninstallAlert addAction:cancelAction];
 
 	[TSPresentationDelegate presentViewController:uninstallAlert animated:YES completion:nil];
