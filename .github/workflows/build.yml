@@ -111,27 +111,43 @@ jobs:
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
         
-        # 首先构建 fastPathSign 工具
+        # 按顺序构建所有组件
+        make pre_build                                  # 预构建准备
+        
+        # 构建 fastPathSign 工具
         cd Exploits/fastPathSign
         make
         cd ../..
         
-        # 按顺序构建各个组件
-        make pre_build                      # 预构建准备
-        make make_roothelper MAKECMDGOALS=all       # 构建 root 助手
-        make make_trollstore MAKECMDGOALS=all       # 构建主程序
-        make make_trollhelper_embedded MAKECMDGOALS=all  # 构建嵌入式助手
-        make make_trollhelper_package MAKECMDGOALS=all   # 构建安装包
-        make assemble_trollstore                    # 组装完整程序
+        # 构建 RootHelper
+        make make_roothelper MAKECMDGOALS=all
         
-        # 构建 TrollHelper IPA
+        # 构建 TrollStore 主程序
+        make make_trollstore MAKECMDGOALS=all
+        
+        # 构建 TrollHelper
+        make make_trollhelper_embedded MAKECMDGOALS=all
+        make make_trollhelper_package MAKECMDGOALS=all
+        
+        # 组装完整程序
+        make assemble_trollstore
+        
+        # 构建安装器
         make build_installer15
         make build_installer64e
         
-        make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
+        # 构建精简版
+        make make_trollstore_lite MAKECMDGOALS=all
         
-        # 验证构建结果
-        ls -l _build/
+        # 验证所有构建产物
+        echo "Checking build artifacts..."
+        ls -la _build/TrollHelper_iOS15.ipa
+        ls -la _build/TrollHelper_arm64e.ipa
+        ls -la _build/TrollStore.tar
+        ls -la _build/PersistenceHelper_*
+        ls -la _build/packages/*.deb
+        ls -la TrollStore/packages/*.deb
+        ls -la TrollHelper/packages/*.deb
         
     # 上传构建产物
     - name: Upload artifacts
@@ -139,10 +155,11 @@ jobs:
       with:
         name: TrollStore-Build
         path: |
-          _build/TrollHelper_iOS15.ipa    # iOS 15 版本
-          _build/TrollHelper_arm64e.ipa   # arm64e 版本
-          _build/TrollStore.tar           # 主程序
-          _build/PersistenceHelper_*      # 持久化助手
-          _build/packages/*.deb           # 安装包
+          _build/TrollHelper_iOS15.ipa
+          _build/TrollHelper_arm64e.ipa
+          _build/TrollStore.tar
+          _build/PersistenceHelper_*
+          _build/packages/*.deb
           TrollStore/packages/*.deb
           TrollHelper/packages/*.deb
+        if-no-files-found: error  # 如果找不到文件就报错
