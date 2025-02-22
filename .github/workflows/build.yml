@@ -70,14 +70,14 @@ jobs:
         
         # 然后按顺序构建其他组件
         make pre_build
-        make make_roothelper
-        make make_trollstore
-        make make_trollhelper_embedded
-        make make_trollhelper_package
+        make roothelper
+        make trollstore
+        make trollhelper_embedded
+        make trollhelper_package
         make assemble_trollstore
         make build_installer15
         make build_installer64e
-        make make_trollstore_lite
+        make trollstore_lite
         
         # 验证编译结果
         ls -l _build/
