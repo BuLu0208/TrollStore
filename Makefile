@@ -49,18 +49,18 @@ build_installer15:
 	@cp ./_build/PersistenceHelper_Embedded_Legacy_arm64 ./_build/TrollStorePersistenceHelperToInject
 	@pwnify set-cpusubtype ./_build/TrollStorePersistenceHelperToInject 1
 	
-	# 先检查 Runner 的架构
-	@lipo -info ./_build/tmp15/Payload/Runner.app/Runner
+	# 先备份原始二进制
+	@cp ./_build/tmp15/Payload/Runner.app/Runner ./_build/tmp15/Payload/Runner.app/Runner.bak
 	
-	# 提取单一架构
-	@lipo ./_build/tmp15/Payload/Runner.app/Runner -thin arm64 -output ./_build/tmp15/Payload/Runner.app/Runner_thin
+	# 使用 lipo 提取第一个 arm64 架构
+	@lipo -extract arm64 ./_build/tmp15/Payload/Runner.app/Runner.bak -output ./_build/tmp15/Payload/Runner.app/Runner_thin
 	
 	# 注入到单一架构的二进制
-	APP_PATH=$$(find ./_build/tmp15/Payload -name "*" -depth 1) ; \
-	pwnify pwn ./_build/tmp15/Payload/Runner.app/Runner_thin ./_build/TrollStorePersistenceHelperToInject
+	@pwnify pwn ./_build/tmp15/Payload/Runner.app/Runner_thin ./_build/TrollStorePersistenceHelperToInject
 	
 	# 替换原始二进制
 	@mv ./_build/tmp15/Payload/Runner.app/Runner_thin ./_build/tmp15/Payload/Runner.app/Runner
+	@rm ./_build/tmp15/Payload/Runner.app/Runner.bak
 	
 	@pushd ./_build/tmp15 ; \
 	zip -vrD ../../_build/TrollHelper_iOS15.ipa * ; \
