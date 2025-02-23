@@ -57,55 +57,11 @@ jobs:
         sudo make install
         cd ..
         
-    # 准备基础 IPA 文件
-    - name: Prepare Victim IPA
-      run: |
-        # 保存当前工作目录
-        WORK_DIR=$PWD
-        
-        # 安装 Flutter 和 Java 17
-        brew install flutter
-        brew install openjdk@17
-        
-        # 配置 Java 环境
-        echo 'export PATH="/usr/local/opt/openjdk@17/bin:$PATH"' >> ~/.zshrc
-        source ~/.zshrc
-        export JAVA_HOME=$(/usr/libexec/java_home -v 17)
-        
-        # 创建临时 Flutter 项目
-        flutter create victim_app
-        cd victim_app
-        
-        # 修改 bundle identifier
-        sed -i '' 's/com.example.victimApp/com.opa334.trollhelper/g' ios/Runner.xcodeproj/project.pbxproj
-        
-        # 修改应用名称
-        sed -i '' 's/Victim App/TrollHelper/g' ios/Runner/Info.plist
-        
-        # 构建 archive
-        flutter build ios --release --no-codesign
-        
-        # 手动创建 IPA
-        mkdir -p $WORK_DIR/Victim
-        cd build/ios/iphoneos
-        mkdir -p Payload
-        cp -r Runner.app Payload/
-        zip -r $WORK_DIR/Victim/InstallerVictim.ipa Payload
-        
-        # 返回工作目录
-        cd $WORK_DIR
-        
-        # 验证 IPA 文件
-        ls -l Victim/InstallerVictim.ipa
-        
     # 主要构建过程
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
       run: |
-        # 确保 Victim 目录和 IPA 文件存在
-        ls -l Victim/InstallerVictim.ipa
-        
         set -e
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
@@ -125,7 +81,6 @@ jobs:
         make assemble_trollstore                    # 组装完整程序
         
         # 构建 TrollHelper IPA
-        make build_installer15
         make build_installer64e
         
         make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
@@ -134,7 +89,6 @@ jobs:
         mkdir -p release_files
         
         # 收集所有构建产物
-        cp _build/TrollHelper_iOS15.ipa release_files/
         cp _build/TrollHelper_arm64e.ipa release_files/
         cp _build/TrollStore.tar release_files/
         cp _build/PersistenceHelper_* release_files/

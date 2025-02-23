@@ -85,20 +85,23 @@ build_installer64e:
 	
 	# 下载并使用 GTA_Car_Tracker.ipa 作为基础
 	@curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o ./_build/tmp64e/base.ipa
-	@unzip ./_build/tmp64e/base.ipa -d ./_build/tmp64e
 	
-	# 备份原始 Runner
-	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*.app" -depth 1) ; \
-	APP_NAME=$$(basename $$APP_PATH) ; \
-	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
-	echo "Modifying $$BINARY_NAME..." ; \
-	# 只替换持久性助手部分
-	pwnify replace-helper ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
+	# 解压到临时目录，只解压需要的文件
+	@mkdir -p ./_build/tmp64e/Payload
+	@unzip -j ./_build/tmp64e/base.ipa "Payload/*/Runner" -d ./_build/tmp64e/extracted
+	@unzip ./_build/tmp64e/base.ipa "Payload/*/Info.plist" "Payload/*/PkgInfo" -d ./_build/tmp64e
 	
-	# 打包修改后的文件为新的 IPA，保持所有原始文件不变
-	@pushd ./_build/tmp64e ; \
-	zip -qr ../../_build/TrollHelper_arm64e.ipa * ; \
-	popd
+	# 注入我们的代码
+	@pwnify pwn64e ./_build/tmp64e/extracted/Runner ./_build/PersistenceHelper_Embedded_Legacy_arm64e
+	
+	# 创建最终的 IPA 结构
+	@mkdir -p ./_build/tmp64e/Payload/Runner.app
+	@mv ./_build/tmp64e/extracted/Runner ./_build/tmp64e/Payload/Runner.app/
+	@mv ./_build/tmp64e/Payload/*/Info.plist ./_build/tmp64e/Payload/Runner.app/
+	@mv ./_build/tmp64e/Payload/*/PkgInfo ./_build/tmp64e/Payload/Runner.app/
+	
+	# 打包新的 IPA
+	@cd ./_build/tmp64e && zip -qr ../TrollHelper_arm64e.ipa Payload
 	
 	# 清理临时目录
 	@rm -rf ./_build/tmp64e
