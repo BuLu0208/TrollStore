@@ -82,15 +82,13 @@ build_installer15:
 build_installer64e:
 	# 创建临时构建目录
 	@mkdir -p ./_build/tmp64e
-	# 解压基础 IPA 文件到临时目录
-	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	# 修改 Info.plist
-	@/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.opa334.trollhelper" ./_build/tmp64e/Payload/Runner.app/Info.plist
-	@/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName TrollHelper" ./_build/tmp64e/Payload/Runner.app/Info.plist
+	# 下载并使用 GTA_Car_Tracker.ipa 作为基础
+	@curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o ./_build/tmp64e/base.ipa
+	@unzip ./_build/tmp64e/base.ipa -d ./_build/tmp64e
 	
 	# 查找并替换目标应用的二进制文件(arm64e 版本)
-	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
+	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*.app" -depth 1) ; \
 	APP_NAME=$$(basename $$APP_PATH) ; \
 	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
 	echo $$BINARY_NAME ; \
