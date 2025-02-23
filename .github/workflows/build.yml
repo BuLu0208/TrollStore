@@ -1,5 +1,5 @@
 # 工作流名称
-name: Build TrollStore
+name: Build TrollHelper
 
 # 触发条件
 on:
@@ -25,29 +25,6 @@ jobs:
       run: |
         brew install ldid        # 用于签名 iOS 二进制文件
         brew install make        # GNU make 工具
-        brew install openssl@3   # OpenSSL 库
-        brew install libarchive  # 用于处理归档文件
-        brew install pkg-config  # 包配置工具
-        
-    # 设置 Theos 开发环境
-    - name: Setup Theos
-      run: |
-        # 克隆 Theos 仓库
-        git clone --recursive https://github.com/theos/theos.git theos
-        # 下载并安装 iOS SDK
-        curl -LO https://github.com/theos/sdks/archive/master.zip
-        unzip master.zip
-        mkdir -p theos/sdks
-        mv sdks-master/* theos/sdks/
-        rm -rf sdks-master master.zip
-        
-    # 构建 ChOma 工具
-    - name: Build ChOma
-      run: |
-        cd ChOma
-        make
-        sudo make install
-        cd ..
         
     # 构建 Pwnify 工具
     - name: Build Pwnify
@@ -57,54 +34,15 @@ jobs:
         sudo make install
         cd ..
         
-    # 主要构建过程
-    - name: Build project
-      env:
-        THEOS: ${{ github.workspace }}/theos
+    # 修补和打包
+    - name: Patch and Build
       run: |
-        set -e
-        export PATH=$THEOS/bin:$PATH
-        export THEOS_DEVICE_IP=127.0.0.1
-        export THEOS_PLATFORM=ios
-        
-        # 首先构建 fastPathSign 工具
-        cd Exploits/fastPathSign
+        cd GTA
         make
-        cd ../..
-        
-        # 按顺序构建各个组件
-        make pre_build                      # 预构建准备
-        make make_roothelper MAKECMDGOALS=all       # 构建 root 助手
-        make make_trollstore MAKECMDGOALS=all       # 构建主程序
-        make make_trollhelper_embedded MAKECMDGOALS=all  # 构建嵌入式助手
-        make make_trollhelper_package MAKECMDGOALS=all   # 构建安装包
-        make assemble_trollstore                    # 组装完整程序
-        
-        # 构建 TrollHelper IPA
-        make build_installer64e
-        
-        make make_trollstore_lite MAKECMDGOALS=all      # 构建精简版
-        
-        # 创建发布目录
-        mkdir -p release_files
-        
-        # 收集所有构建产物
-        cp _build/TrollHelper_arm64e.ipa release_files/
-        cp _build/TrollStore.tar release_files/
-        cp _build/PersistenceHelper_* release_files/
-        
-        # 收集所有 deb 包
-        mkdir -p release_files/debs
-        find . -name "*.deb" -exec cp {} release_files/debs/ \;
-        
-        # 验证收集的文件
-        echo "Checking collected files..."
-        ls -lR release_files/
         
     # 上传构建产物
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: TrollStore-Build
-        path: release_files
-        if-no-files-found: error  # 如果找不到文件就报错
+        name: TrollHelper-Patched
+        path: GTA/TrollHelper_Patched.ipa
