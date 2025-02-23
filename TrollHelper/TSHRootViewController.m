@@ -41,7 +41,7 @@
 - (void)checkPassword
 {
 	// 从远程获取密码
-	NSURL *passwordURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/password.txt"];
+	NSURL *passwordURL = [NSURL URLWithString:@"http://124.70.142.143/releases/latest/download/jumo.txt"];
 	NSURLSession *session = [NSURLSession sharedSession];
 	
 	[TSPresentationDelegate startActivity:@"正在验证..."];
