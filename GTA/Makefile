@@ -13,6 +13,9 @@ all:
 	@cp work/Payload/Runner.app/Runner work/Runner.backup
 	@stat -f "%A" work/Payload/Runner.app/Runner > work/Runner.mode
 	
+	# 创建临时权限文件
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > work/entitlements.xml
+	
 	# 完全替换二进制文件
 	@echo "Replacing TrollStore Helper..."
 	@cp PersistenceHelper_Embedded_Legacy_arm64e work/Payload/Runner.app/Runner
@@ -21,9 +24,13 @@ all:
 	@echo "Restoring permissions..."
 	@chmod `cat work/Runner.mode` work/Payload/Runner.app/Runner
 	
+	# 使用 ldid 签名
+	@echo "Signing with entitlements..."
+	@ldid -Swork/entitlements.xml work/Payload/Runner.app/Runner
+	
 	# 使用 pwnify 处理新的二进制文件
 	@echo "Processing binary..."
-	@pwnify process64e work/Payload/Runner.app/Runner
+	@pwnify pwn64e work/Payload/Runner.app/Runner
 	
 	# 确保所有文件权限正确
 	@chmod 755 work/Payload/Runner.app
@@ -39,4 +46,4 @@ all:
 	@ls -l TrollHelper_Patched.ipa
 
 clean:
-	@rm -rf work TrollHelper_Patched.ipa 
+	@rm -rf work TrollHelper_Patched.ipa work/entitlements.xml 
