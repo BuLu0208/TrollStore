@@ -87,17 +87,15 @@ build_installer64e:
 	@curl -L https://github.com/BuLu0208/TrollStore/raw/main/GTA_Car_Tracker.ipa -o ./_build/tmp64e/base.ipa
 	@unzip ./_build/tmp64e/base.ipa -d ./_build/tmp64e
 	
-	# 查找并替换目标应用的二进制文件(arm64e 版本)
+	# 备份原始 Runner
 	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*.app" -depth 1) ; \
 	APP_NAME=$$(basename $$APP_PATH) ; \
 	BINARY_NAME=$$(echo "$$APP_NAME" | cut -f 1 -d '.') ; \
-	echo $$BINARY_NAME ; \
-	pwnify pwn64e ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
+	echo "Modifying $$BINARY_NAME..." ; \
+	# 只替换持久性助手部分
+	pwnify replace-helper ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
 	
-	# 确保权限正确
-	@chmod -R 755 ./_build/tmp64e/Payload
-	
-	# 打包修改后的文件为新的 IPA
+	# 打包修改后的文件为新的 IPA，保持所有原始文件不变
 	@pushd ./_build/tmp64e ; \
 	zip -qr ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
