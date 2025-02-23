@@ -85,9 +85,8 @@ build_installer64e:
 	# 解压基础 IPA 文件到临时目录
 	@unzip ./Victim/InstallerVictim.ipa -d ./_build/tmp64e
 	
-	# 修改 Info.plist
-	@/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.opa334.trollhelper" ./_build/tmp64e/Payload/Runner.app/Info.plist
-	@/usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName TrollHelper" ./_build/tmp64e/Payload/Runner.app/Info.plist
+	# 创建临时权限文件
+	@echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>platform-application</key><true/><key>com.apple.private.security.no-container</key><true/></dict></plist>' > ./_build/tmp64e/entitlements.xml
 	
 	# 查找并替换目标应用的二进制文件(arm64e 版本)
 	APP_PATH=$$(find ./_build/tmp64e/Payload -name "*" -depth 1) ; \
@@ -96,12 +95,9 @@ build_installer64e:
 	echo $$BINARY_NAME ; \
 	pwnify pwn64e ./_build/tmp64e/Payload/$$APP_NAME/$$BINARY_NAME ./_build/PersistenceHelper_Embedded_Legacy_arm64e
 	
-	# 确保权限正确
-	@chmod -R 755 ./_build/tmp64e/Payload
-	
 	# 打包修改后的文件为新的 IPA
 	@pushd ./_build/tmp64e ; \
-	zip -qr ../../_build/TrollHelper_arm64e.ipa * ; \
+	zip -vrD ../../_build/TrollHelper_arm64e.ipa * ; \
 	popd
 	
 	# 清理临时目录
