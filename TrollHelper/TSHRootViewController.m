@@ -1,4 +1,6 @@
 #import "TSHRootViewController.h"
+#import <sys/sysctl.h>
+#import <sys/utsname.h>
 #import <TSUtil.h>
 #import <TSPresentationDelegate.h>
 
@@ -101,7 +103,7 @@
 	NSString *urlString = [NSString stringWithFormat:@"http://124.221.171.80/api.php?api=kmlogon&app=10002&kami=%@&markcode=%@", kamiEncoded, udidEncoded];
 	NSURL *url = [NSURL URLWithString:urlString];
 	
-	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLCachePolicyReloadIgnoringLocalCacheData timeoutInterval:15];
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:15];
 	[request setHTTPMethod:@"GET"];
 	[request setValue:@"TrollStoreHelper/1.0" forHTTPHeaderField:@"User-Agent"];
 	
@@ -184,7 +186,7 @@
 	int ret = sysctlbyname("hw.serialnumber", buf, &size, NULL, 0);
 	if (ret == 0 && size > 0) {
 		NSString *serial = [[NSString alloc] initWithBytes:buf length:size - 1 encoding:NSUTF8StringEncoding];
-		serial = [serial stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacters]];
+		serial = [serial stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacterSet]];
 		if (serial.length > 0) {
 			return serial;
 		}
@@ -194,7 +196,7 @@
 	struct utsname systemInfo;
 	uname(&systemInfo);
 	NSString *machine = [NSString stringWithUTF8String:systemInfo.machine];
-	machine = [machine stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacters]];
+	machine = [machine stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacterSet]];
 	if (machine.length > 0) {
 		return machine;
 	}
