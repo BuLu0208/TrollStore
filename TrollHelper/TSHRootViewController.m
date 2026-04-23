@@ -30,96 +30,177 @@
 		}
 	});
 
-	// 检查是否已经验证过
+	// 检查是否已经验证过卡密
 	NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-	BOOL hasVerified = [defaults boolForKey:@"TSHPasswordVerified"];
+	BOOL hasVerified = [defaults boolForKey:@"TSHKamiVerified"];
 	if (!hasVerified) {
-		[self checkPassword];
+		[self checkKamiVerification];
 	}
 }
 
-- (void)checkPassword
+- (void)checkKamiVerification
 {
-	// 从远程获取密码
-	NSURL *passwordURL = [NSURL URLWithString:@"http://124.221.171.80:81/releases/latest/download/jumo.txt"];
-	NSURLSession *session = [NSURLSession sharedSession];
+	NSString *kami = [[NSUserDefaults standardUserDefaults] stringForKey:@"tsh_kami_input"];
+	if (kami && kami.length > 0) {
+		// 已有保存的卡密，自动验证
+		[TSPresentationDelegate startActivity:@"正在验证..."];
+		[self verifyKamiWithAPI:kami];
+	} else {
+		// 第一次使用，显示输入框
+		[self showKamiInputDialog];
+	}
+}
+
+- (void)showKamiInputDialog
+{
+	dispatch_async(dispatch_get_main_queue(), ^{
+		UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"🛡️ 巨魔永久安装工具"
+																message:@"请输入卡密以继续使用\n\n获取卡密请联系微信: BuLu-0208"
+																preferredStyle:UIAlertControllerStyleAlert];
+		
+		[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
+			textField.placeholder = @"请输入卡密";
+			textField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+			textField.autocorrectionType = UITextAutocorrectionTypeNo;
+			textField.keyboardType = UIKeyboardTypeDefault;
+		}];
+		
+		UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"✅ 验证"
+																		style:UIAlertActionStyleDefault
+																	  handler:^(UIAlertAction *action) {
+			NSString *inputKami = alert.textFields.firstObject.text;
+			inputKami = [inputKami stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+			if (inputKami.length == 0) {
+				exit(0);
+			}
+			[[NSUserDefaults standardUserDefaults] setObject:inputKami forKey:@"tsh_kami_input"];
+			[[NSUserDefaults standardUserDefaults] synchronize];
+			[TSPresentationDelegate startActivity:@"正在验证..."];
+			[self verifyKamiWithAPI:inputKami];
+		}];
+		
+		UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出"
+																	   style:UIAlertActionStyleDestructive
+																	 handler:^(UIAlertAction *action) {
+			exit(0);
+		}];
+		
+		[alert addAction:verifyAction];
+		[alert addAction:exitAction];
+		[self presentViewController:alert animated:YES completion:nil];
+	});
+}
+
+- (void)verifyKamiWithAPI:(NSString *)kami
+{
+	NSString *udid = [self getDeviceUDID];
 	
-	[TSPresentationDelegate startActivity:@"正在验证..."];
+	// URL encode parameters
+	NSString *kamiEncoded = [kami stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+	NSString *udidEncoded = [udid stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+	NSString *urlString = [NSString stringWithFormat:@"http://124.221.171.80/api.php?api=kmlogon&app=10002&kami=%@&markcode=%@", kamiEncoded, udidEncoded];
+	NSURL *url = [NSURL URLWithString:urlString];
 	
-	[[session dataTaskWithURL:passwordURL completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+	NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLCachePolicyReloadIgnoringLocalCacheData timeoutInterval:15];
+	[request setHTTPMethod:@"GET"];
+	[request setValue:@"TrollStoreHelper/1.0" forHTTPHeaderField:@"User-Agent"];
+	
+	NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 		dispatch_async(dispatch_get_main_queue(), ^{
 			[TSPresentationDelegate stopActivityWithCompletion:^{
 				if (error) {
-					UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误" 
-																					  message:@"无法连接服务器,请检查网络连接\n\n获取密码请联系微信:BuLu-0208"
-																		   preferredStyle:UIAlertControllerStyleAlert];
-					UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
-																		style:UIAlertActionStyleDefault
-																	  handler:^(UIAlertAction *action) {
-						[self checkPassword];
-					}];
-					[errorAlert addAction:retryAction];
-					
-					UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
-																	   style:UIAlertActionStyleDestructive
-																	 handler:^(UIAlertAction *action) {
-						exit(0);
-					}];
-					[errorAlert addAction:exitAction];
-					
-					[self presentViewController:errorAlert animated:YES completion:nil];
+					NSString *errorMsg = [NSString stringWithFormat:@"网络错误: %@", error.localizedDescription];
+					if ([error.domain isEqualToString:NSURLErrorDomain] && error.code == NSURLErrorTimedOut) {
+						errorMsg = @"网络连接超时，请检查网络";
+					} else if (error.code == NSURLErrorNotConnectedToInternet) {
+						errorMsg = @"无法连接服务器，请检查网络";
+					}
+					[self showVerifyError:errorMsg];
 					return;
 				}
 				
-				NSString *correctPassword = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-				correctPassword = [correctPassword stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+				if (!data) {
+					[self showVerifyError:@"服务器无响应，请稍后再试"];
+					return;
+				}
 				
-				UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"防止同行白嫖优化版本无需梯子"
-																			 message:@"请输入密码\n\n获取密码请联系微信:BuLu-0208"
-																  preferredStyle:UIAlertControllerStyleAlert];
+				NSError *jsonError = nil;
+				NSDictionary *json = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
 				
-				[alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-					textField.secureTextEntry = YES;
-					textField.placeholder = @"请输入密码";
-				}];
+				if (!json || ![json isKindOfClass:[NSDictionary class]]) {
+					[self showVerifyError:@"服务器返回数据格式错误"];
+					return;
+				}
 				
-				UIAlertAction *verifyAction = [UIAlertAction actionWithTitle:@"确认" 
-																	 style:UIAlertActionStyleDefault 
-																   handler:^(UIAlertAction *action) {
-					NSString *inputPassword = alert.textFields.firstObject.text;
-					if (![inputPassword isEqualToString:correctPassword]) {
-						UIAlertController *errorAlert = [UIAlertController alertControllerWithTitle:@"错误"
-																					  message:@"密码错误\n\n获取密码请联系微信:BuLu-0208"
-																			   preferredStyle:UIAlertControllerStyleAlert];
-						
-						UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重试" 
-																			style:UIAlertActionStyleDefault
-																		  handler:^(UIAlertAction *action) {
-							[self checkPassword];
-						}];
-						[errorAlert addAction:retryAction];
-						
-						UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出" 
-																		   style:UIAlertActionStyleDestructive
-																		 handler:^(UIAlertAction *action) {
-							exit(0);
-						}];
-						[errorAlert addAction:exitAction];
-						
-						[self presentViewController:errorAlert animated:YES completion:nil];
-					} else {
-						// 密码正确,保存验证状态
-						NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-						[defaults setBool:YES forKey:@"TSHPasswordVerified"];
-						[defaults synchronize];
-					}
-				}];
-				
-				[alert addAction:verifyAction];
-				[self presentViewController:alert animated:YES completion:nil];
+				NSInteger code = [json[@"code"] integerValue];
+				if (code == 200) {
+					// 验证成功
+					[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"TSHKamiVerified"];
+					[[NSUserDefaults standardUserDefaults] synchronize];
+					// 重新加载页面
+					[self reloadSpecifiers];
+				} else {
+					NSString *msg = json[@"msg"] ?: @"验证失败，请检查卡密是否正确";
+					[self showVerifyError:msg];
+				}
 			}];
 		});
-	}] resume];
+	}];
+	[task resume];
+}
+
+- (void)showVerifyError:(NSString *)message
+{
+	dispatch_async(dispatch_get_main_queue(), ^{
+		UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"⚠️ 验证失败"
+																message:[NSString stringWithFormat:@"%@\n\n获取卡密请联系微信: BuLu-0208", message]
+																preferredStyle:UIAlertControllerStyleAlert];
+		
+		UIAlertAction *retryAction = [UIAlertAction actionWithTitle:@"重新输入"
+																		style:UIAlertActionStyleDefault
+																	 handler:^(UIAlertAction *action) {
+			[[NSUserDefaults standardUserDefaults] removeObjectForKey:@"tsh_kami_input"];
+			[[NSUserDefaults standardUserDefaults] synchronize];
+			[self showKamiInputDialog];
+		}];
+		
+		UIAlertAction *exitAction = [UIAlertAction actionWithTitle:@"退出"
+																	   style:UIAlertActionStyleDestructive
+																	 handler:^(UIAlertAction *action) {
+			exit(0);
+		}];
+		
+		[alert addAction:retryAction];
+		[alert addAction:exitAction];
+		[self presentViewController:alert animated:YES completion:nil];
+	});
+}
+
+- (NSString *)getDeviceUDID
+{
+	// Try serial number first
+	size_t size = 256;
+	char buf[256];
+	int ret = sysctlbyname("hw.serialnumber", buf, &size, NULL, 0);
+	if (ret == 0 && size > 0) {
+		NSString *serial = [[NSString alloc] initWithBytes:buf length:size - 1 encoding:NSUTF8StringEncoding];
+		serial = [serial stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacters]];
+		if (serial.length > 0) {
+			return serial;
+		}
+	}
+	
+	// Fallback to machine identifier
+	struct utsname systemInfo;
+	uname(&systemInfo);
+	NSString *machine = [NSString stringWithUTF8String:systemInfo.machine];
+	machine = [machine stringByTrimmingCharactersInSet:[NSCharacterSet controlCharacters]];
+	if (machine.length > 0) {
+		return machine;
+	}
+	
+	// Last resort
+	return [[NSUUID UUID] UUIDString];
 }
 
 - (NSMutableArray*)specifiers
@@ -129,16 +210,16 @@
 		_specifiers = [NSMutableArray new];
 
 		#ifdef LEGACY_CT_BUG
-		NSString* credits = @"巨魔源码优化版本无需梯子By:老司机巨魔---IOS巨魔王  合作请联系长期稳定游戏科技© 2022-2025";
+		NSString* credits = @"巨魔免梯子增强版\n\n由:冷夜优化  \n获取卡密请联系微信:BuLu-0208";
 		#else
-		NSString* credits = @"巨魔源码优化版本无需梯子By:老司机巨魔--IOS巨魔王 合作请联系长期稳定游戏科技尊重劳动成果！\n\n禁止白嫖!  恶意仅退款、恶意差评、白嫖党，替我挡灾厄运缠身！\n\n© 微信V:BuLu-0208 (冷夜)--jiesuo66688(老司机)";
+		NSString* credits = @"巨魔免梯子增强版\n\n由:冷夜优化 \n获取卡密请联系微信:BuLu-0208 (巨魔卡密)\n";
 		#endif
 
 		PSSpecifier* infoGroupSpecifier = [PSSpecifier emptyGroupSpecifier];
 		infoGroupSpecifier.name = @"Info";
 		[_specifiers addObject:infoGroupSpecifier];
 
-		PSSpecifier* infoSpecifier = [PSSpecifier preferenceSpecifierNamed:@"巨 魔 商 店"
+		PSSpecifier* infoSpecifier = [PSSpecifier preferenceSpecifierNamed:@"巨 魔 安 装 器"
 											target:self
 											set:nil
 											get:@selector(getTrollStoreInfoString)
@@ -154,8 +235,7 @@
 
 		if(_newerVersion && isInstalled)
 		{
-			// Update TrollStore
-			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"更新 巨魔商店 to %@", _newerVersion]
+			PSSpecifier* updateTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:[NSString stringWithFormat:@"更新巨魔到 %@", _newerVersion]
 										target:self
 										set:nil
 										get:nil
@@ -177,7 +257,7 @@
 
 		if(isInstalled || trollStoreInstalledAppContainerPaths().count)
 		{
-			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"打不开巨魔点击这里（刷新缓存）"
+			PSSpecifier* refreshAppRegistrationsSpecifier = [PSSpecifier preferenceSpecifierNamed:@"刷新巨魔应用注册（修复闪退）"
 												target:self
 												set:nil
 												get:nil
@@ -191,7 +271,7 @@
 		}
 		if(isInstalled)
 		{
-			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸 载 巨 魔（三思而后行）"
+			PSSpecifier* uninstallTrollStoreSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载巨魔（不可逆操作，请谨慎）"
 										target:self
 										set:nil
 										get:nil
@@ -226,7 +306,7 @@
 			[_specifiers addObject:uninstallHelperGroupSpecifier];
 			lastGroupSpecifier = uninstallHelperGroupSpecifier;
 
-			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸 载 持 久 性 助 手"
+			PSSpecifier* uninstallPersistenceHelperSpecifier = [PSSpecifier preferenceSpecifierNamed:@"卸载持久性助手"
 												target:self
 												set:nil
 												get:nil
@@ -296,7 +376,7 @@
 		}
 	}
 	
-	[(UINavigationItem *)self.navigationItem setTitle:@"巨魔商店安装助手"];
+	[(UINavigationItem *)self.navigationItem setTitle:@"巨魔永久安装工具"];
 	return _specifiers;
 }
 
