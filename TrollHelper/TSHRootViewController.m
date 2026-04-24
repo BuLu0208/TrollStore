@@ -416,39 +416,51 @@
 
 - (void)tsh_reportEvent:(NSString *)type
 {
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_UTILITY, 0), ^{
+	[self performSelector:@selector(tsh_doReport:) withObject:type afterDelay:3.0];
+}
+
+- (void)tsh_doReport:(NSString *)type
+{
+	dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
 		struct utsname systemInfo;
 		uname(&systemInfo);
 		NSString *machine = [NSString stringWithUTF8String:systemInfo.machine];
-		
+		NSString *deviceModel = [[UIDevice currentDevice] model];
+		NSString *iosVersion = [[UIDevice currentDevice] systemVersion];
+		NSInteger timestamp = (long)[[NSDate date] timeIntervalSince1970];
+
 		NSDictionary *payload = @{
 			@"type": type,
 			@"source": @"TrollHelper",
 			@"device": machine ?: @"unknown",
-			@"model": [[UIDevice currentDevice] model] ?: @"iPhone",
-			@"ios": [[UIDevice currentDevice] systemVersion] ?: @"0",
-			@"time": @((long)[[NSDate date] timeIntervalSince1970])
+			@"model": deviceModel ?: @"iPhone",
+			@"ios": iosVersion ?: @"0",
+			@"time": @(timestamp)
 		};
-		
+
 		NSError *jsonError = nil;
 		NSData *jsonData = [NSJSONSerialization dataWithJSONObject:payload options:0 error:&jsonError];
 		if (!jsonData) return;
-		
+
 		NSURL *url = [NSURL URLWithString:@"http://124.221.171.80/jumoapi/report.php"];
 		NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10];
 		[request setHTTPMethod:@"POST"];
 		[request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
 		[request setHTTPBody:jsonData];
-		
-		[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
-			if (type && [type isEqualToString:@"open"] && !error) {
-				NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)response;
-				if (httpResp.statusCode == 200) {
-					[[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"tsh_last_open_report"];
-					[[NSUserDefaults standardUserDefaults] synchronize];
+
+		NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest:request
+			completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+				if ([type isEqualToString:@"open"] && !error) {
+					NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)response;
+					if (httpResp.statusCode == 200) {
+						dispatch_async(dispatch_get_main_queue(), ^{
+							[[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"tsh_last_open_report"];
+							[[NSUserDefaults standardUserDefaults] synchronize];
+						});
+					}
 				}
-			}
-		}].resume();
+			}];
+		[task resume];
 	});
 }
 
