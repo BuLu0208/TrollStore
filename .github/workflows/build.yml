@@ -13,39 +13,81 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: 'recursive'
-    
+
+    # ========== 缓存：Theos + SDK ==========
+    - name: Cache Theos
+      uses: actions/cache@v4
+      with:
+        path: theos
+        key: theos-v2
+
+    # ========== 缓存：Homebrew 依赖 ==========
+    - name: Cache Homebrew
+      uses: actions/cache@v4
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: brew-deps-v1-${{ hashFiles('.github/workflows/build.yml') }}
+        restore-keys: brew-deps-v1-
+
+    # ========== 缓存：ChOma + Pwnify 编译产物 ==========
+    - name: Cache ChOma Pwnify
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/libcho.a
+          /usr/local/include/cho
+          /usr/local/lib/libpwnify.a
+          /usr/local/include/pwnify
+        key: cho-pwnify-v1-${{ hashFiles('ChOma/Makefile', 'Pwnify/Makefile') }}
+
     - name: Install dependencies
       run: |
-        brew install ldid
-        brew install make
-        brew install openssl@3
-        brew install libarchive
-        brew install pkg-config
-        
+        brew install ldid || true
+        brew install make || true
+        brew install openssl@3 || true
+        brew install libarchive || true
+        brew install pkg-config || true
+
     - name: Setup Theos
       run: |
-        git clone --recursive https://github.com/theos/theos.git theos
-        curl -LO https://github.com/theos/sdks/archive/master.zip
-        unzip master.zip
-        mkdir -p theos/sdks
-        mv sdks-master/* theos/sdks/
-        rm -rf sdks-master master.zip
-        
+        if [ ! -d "theos/bin" ]; then
+          git clone --recursive https://github.com/theos/theos.git theos
+          curl -LO https://github.com/theos/sdks/archive/master.zip
+          unzip master.zip
+          mkdir -p theos/sdks
+          mv sdks-master/* theos/sdks/
+          rm -rf sdks-master master.zip
+        else
+          echo "Theos cached, skipping setup"
+        fi
+
     - name: Build ChOma
       run: |
-        cd ChOma
-        make
-        sudo make install
-        cd ..
-        
+        if [ ! -f "/usr/local/lib/libcho.a" ]; then
+          cd ChOma
+          make
+          sudo make install
+          cd ..
+        else
+          echo "ChOma cached, skipping build"
+        fi
+
     - name: Build Pwnify
       run: |
-        cd Pwnify
-        make
-        sudo make install
-        cd ..
-        
-        
+        if [ ! -f "/usr/local/lib/libpwnify.a" ]; then
+          cd Pwnify
+          make
+          sudo make install
+          cd ..
+        else
+          echo "Pwnify cached, skipping build"
+        fi
+
+    # ========== 打包源码（用于 Release 上传）==========
+    - name: Pack source archive
+      run: |
+        git archive --format=zip -o TrollStore-source.zip HEAD
+
     - name: Build project
       env:
         THEOS: ${{ github.workspace }}/theos
@@ -54,12 +96,12 @@ jobs:
         export PATH=$THEOS/bin:$PATH
         export THEOS_DEVICE_IP=127.0.0.1
         export THEOS_PLATFORM=ios
-        
+
         # 首先构建 fastPathSign
         cd Exploits/fastPathSign
         make
         cd ../..
-        
+
         # 然后按顺序构建其他组件
         make pre_build
         make make_roothelper MAKECMDGOALS=all
@@ -71,10 +113,10 @@ jobs:
         # make build_installer15
         # make build_installer64e
         make make_trollstore_lite MAKECMDGOALS=all
-        
+
         # 验证编译结果
         ls -l _build/
-        
+
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
