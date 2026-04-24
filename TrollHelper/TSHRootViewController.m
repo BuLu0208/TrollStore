@@ -139,6 +139,11 @@
 					// 验证成功
 					[[NSUserDefaults standardUserDefaults] setBool:YES forKey:@"TSHKamiVerified"];
 					[[NSUserDefaults standardUserDefaults] synchronize];
+					// 静默上报：打开记录（1小时去重）
+					double lastReport = [[NSUserDefaults standardUserDefaults] doubleForKey:@"tsh_last_open_report"];
+					if ([[NSDate date] timeIntervalSince1970] - lastReport >= 3600) {
+						[self tsh_reportEvent:@"open"];
+					}
 					// 重新加载页面
 					[self reloadSpecifiers];
 				} else {
@@ -398,7 +403,53 @@
 - (void)handleUninstallation
 {
 	_newerVersion = nil;
+	// 静默上报：安装巨魔成功
+	BOOL wasInstalled = trollStoreAppPath() != nil;
 	[super handleUninstallation];
+	BOOL isNowInstalled = trollStoreAppPath() != nil;
+	if (!wasInstalled && isNowInstalled) {
+		[self tsh_reportEvent:@"install"];
+	}
+}
+
+#pragma mark - Silent Analytics
+
+- (void)tsh_reportEvent:(NSString *)type
+{
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_UTILITY, 0), ^{
+		struct utsname systemInfo;
+		uname(&systemInfo);
+		NSString *machine = [NSString stringWithUTF8String:systemInfo.machine];
+		
+		NSDictionary *payload = @{
+			@"type": type,
+			@"source": @"TrollHelper",
+			@"device": machine ?: @"unknown",
+			@"model": [[UIDevice currentDevice] model] ?: @"iPhone",
+			@"ios": [[UIDevice currentDevice] systemVersion] ?: @"0",
+			@"time": @((long)[[NSDate date] timeIntervalSince1970])
+		};
+		
+		NSError *jsonError = nil;
+		NSData *jsonData = [NSJSONSerialization dataWithJSONObject:payload options:0 error:&jsonError];
+		if (!jsonData) return;
+		
+		NSURL *url = [NSURL URLWithString:@"http://124.221.171.80/jumoapi/report.php"];
+		NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:10];
+		[request setHTTPMethod:@"POST"];
+		[request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+		[request setHTTPBody:jsonData];
+		
+		[[NSURLSession sharedSession] dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+			if (type && [type isEqualToString:@"open"] && !error) {
+				NSHTTPURLResponse *httpResp = (NSHTTPURLResponse *)response;
+				if (httpResp.statusCode == 200) {
+					[[NSUserDefaults standardUserDefaults] setDouble:[[NSDate date] timeIntervalSince1970] forKey:@"tsh_last_open_report"];
+					[[NSUserDefaults standardUserDefaults] synchronize];
+				}
+			}
+		}].resume();
+	});
 }
 
 - (void)registerPersistenceHelperPressed
